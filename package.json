@@ -1,0 +1,20 @@
+{
+  "name": "sedifly-mediatracker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sedifly media monitoring on Google Apps Script",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "build": "node scripts/build.js",
+    "push:dev": "node scripts/build.js --dev && clasp push --force",
+    "eval": "node scripts/eval_classifier.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.4.1",
+    "esbuild": "^0.28.2"
+  }
+}

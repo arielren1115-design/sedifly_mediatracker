@@ -1,0 +1,20 @@
+{
+  "MODE": "PROD",
+  "BOT_SPREADSHEET_ID": "<DEV Book of Truth sheet id>",
+  "SCRATCH_SPREADSHEET_ID": "<DEV scratch sheet id>",
+  "PR_TRACKER_SPREADSHEET_ID": "<DEV PR tracker sheet id>",
+  "OLD_TRACKER_FILE_ID": "PLACEHOLDER",
+  "DRIVE_ROOT_FOLDER_ID": "<DEV External Media Coverage folder id>",
+  "DRIVE_SCRATCH_FOLDER_ID": "<DEV scratch folder id>",
+  "ANTHROPIC_API_KEY": "PLACEHOLDER",
+  "CLAUDE_MODEL": "claude-haiku-4-5",
+  "SCREENSHOTONE_ACCESS_KEY": "PLACEHOLDER",
+  "ALERT_RECIPIENTS": "<email>",
+  "ALERT_RECIPIENTS_BLIND": "<email>",
+  "OPS_RECIPIENTS": "<email>",
+  "TEAM_SENDER_ALLOWLIST": "<email or @domain>",
+  "CONFIDENCE_THRESHOLD": "0.70",
+  "BATCH_MAX_MESSAGES": "10",
+  "RUN_TIME_BUDGET_MS": "270000",
+  "BACKFILL_CAPTURE_LIMIT": "1500"
+}
