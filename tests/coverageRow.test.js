@@ -12,10 +12,11 @@ test('coverage ids are zero padded and permanent in format', () => {
 });
 
 test('row uses only real headers, fills provisional fields, and trims the excerpt', () => {
-  const row = toCoverageRow(item, { coverageId: 'COV-000007', now });
+  const row = toCoverageRow(item, { coverageId: 'COV-000007', now, normalisedUrl: 'https://a.com/x' });
   for (const k of Object.keys(row)) assert.ok(COVERAGE_HEADERS.includes(k), `unknown header ${k}`);
   assert.equal(row['Coverage ID'], 'COV-000007');
   assert.equal(row.URL, 'https://a.com/x');
+  assert.equal(row['Normalised URL'], 'https://a.com/x');
   assert.equal(row.Excerpt.length, 500);
   assert.equal(row['Source route'], 'Google Alerts');
   assert.equal(row['Found in'], 'Tool');

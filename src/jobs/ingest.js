@@ -1,9 +1,10 @@
 import { assertConfig, getProp, setProp, targetSpreadsheetId } from '../gas/config.js';
 import { labelIdsByName, listCandidates, getMessage, markProcessed, markReview } from '../gas/gmail.js';
-import { appendObjects, existingItemKeys } from '../gas/sheets.js';
+import { appendObjects, readIndexRows, updateCells } from '../gas/sheets.js';
 import { allocateCoverageIds } from '../gas/coverageIds.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { processBatch } from '../core/ingestRun.js';
+import { createIndex } from '../core/dedupe.js';
 
 /**
  * Reads labelled Gmail messages, parses them, writes provisional Coverage rows, and relabels each message.
@@ -28,12 +29,15 @@ export function runIngest() {
     let summary = { messagesSeen: 0, details: [], status: 'OK', errors: 0 };
     if (candidates.length) {
       const coverage = ss.getSheetByName('Coverage');
+      const reviewQueue = ss.getSheetByName('Review Queue');
       summary = processBatch({
         candidates,
         getMessage,
-        existingKeys: existingItemKeys(ss),
+        index: createIndex(readIndexRows(ss)),
         allocateIds: allocateCoverageIds,
-        appendRows: (rows) => appendObjects(coverage, rows),
+        appendCoverageRow: (row) => appendObjects(coverage, [row]),
+        appendReviewRow: (row) => appendObjects(reviewQueue, [row]),
+        updateExisting: (entry, values) => updateCells(ss.getSheetByName(entry.sheet), entry.rowNumber, values),
         markProcessed: (id, label) => markProcessed(id, labelIds, label),
         markReview: (id, label) => markReview(id, labelIds, label),
         shouldStop: () => Date.now() - t0 > budgetMs,

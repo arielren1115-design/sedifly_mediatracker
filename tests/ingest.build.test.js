@@ -36,13 +36,13 @@ for (const format of ['bytes', 'string']) test(`blocker 2 with ${format} body da
 
   const first = run(sb, 'runIngest()');
   assert.equal(first.status, 'OK');
-  assert.equal(coverageRows(env).length - 1, 1 + 3 + 1 + 1 + 2);
+  assert.equal(coverageRows(env).length - 1, 7, '8 items, one repeated link merged');
   assert.deepEqual(labelsOf(env, 'f1'), ['INBOX', 'L_Monitoring/Processed']);
   assert.deepEqual(labelsOf(env, 'a1'), ['L_Monitoring/Processed']);
   assert.deepEqual(labelsOf(env, 'bad'), ['L_Monitoring/Review']);
   assert.deepEqual(labelsOf(env, 'out'), ['L_Monitoring/Review']);
   assert.deepEqual(labelsOf(env, 'other'), ['INBOX'], 'unrelated mail is untouched');
-  assert.equal(env.store.NEXT_COVERAGE_ID, String(1 + 8));
+  assert.equal(env.store.NEXT_COVERAGE_ID, String(1 + 7));
   assert.ok(env.store.LAST_SUCCESS_AT);
 
   const headers = coverageRows(env)[0];
@@ -50,7 +50,7 @@ for (const format of ['bytes', 'string']) test(`blocker 2 with ${format} body da
   const urls = coverageRows(env).slice(1).map((r) => r[col('URL')]).sort();
   assert.deepEqual(urls, [
     '', 'https://media.unisba.ac.id/e7cc6231/04877eceNy8XOVQbNB1bNCs', 'https://sequoiacap.com/article/services-the-new-software', 'https://www.campus.sg/us-vs-uk-universities-what-singapore-students-should-consider-before-choosing-campus-sg/',
-    'https://www.forbes.com/councils/forbesbusinesscouncil/2026/10/13/why-venture-capital-money-isnt-right-for-every-founder/', 'https://www.nus.edu.sg/', 'https://www.sedifly.com/', 'https://www.sedifly.com/',
+    'https://www.forbes.com/councils/forbesbusinesscouncil/2026/10/13/why-venture-capital-money-isnt-right-for-every-founder/', 'https://www.nus.edu.sg/', 'https://www.sedifly.com/',
   ].sort());
   const ids = coverageRows(env).slice(1).map((r) => r[col('Coverage ID')]);
   assert.equal(new Set(ids).size, ids.length);
@@ -62,14 +62,15 @@ for (const format of ['bytes', 'string']) test(`blocker 2 with ${format} body da
   assert.equal(r.Function, 'runIngest');
   assert.equal(r['Messages seen'], 7);
   assert.equal(r['To review'], 2);
-  assert.equal(r['New rows'], 8);
+  assert.equal(r['New rows'], 7);
+  assert.equal(r.Duplicates, 1);
   assert.equal(r['Status (OK / PARTIAL / FAILED)'], 'OK');
   assert.ok(JSON.parse(r.Detail).details.some((d) => d.outcome === 'review' && /allowlist/i.test(d.reason)));
 
   // Second run: nothing to do, nothing new written, still logged.
   const second = run(sb, 'runIngest()');
   assert.equal(second.messagesSeen, 0);
-  assert.equal(coverageRows(env).length - 1, 8);
+  assert.equal(coverageRows(env).length - 1, 7);
   assert.equal(runLogRows(env).length, 3);
 });
 
@@ -88,4 +89,32 @@ test('missing configuration fails loudly instead of half running', async () => {
   const env = makeEnv(props);
   const sb = await load(env);
   assert.throws(() => run(sb, 'runIngest()'), /Missing Script Properties: TEAM_SENDER_ALLOWLIST/);
+});
+
+const rawPlain = (id, from, text) => ({
+  id, internalDate: String(Date.parse('2026-10-18T11:00:00Z')),
+  payload: { mimeType: 'text/plain', headers: [{ name: 'From', value: from }, { name: 'Subject', value: 's' }], body: { data: Buffer.from(text).toString('base64url') } },
+});
+
+test('the same article arriving through a second source is merged into the existing row', async () => {
+  const { env, sb, add } = await ready();
+  await add('a2', 'talkwalker_native', ['Monitoring/Automated']);
+  run(sb, 'runIngest()');
+  assert.equal(coverageRows(env).length - 1, 2);
+  const headers = coverageRows(env)[0];
+  const col = (h) => headers.indexOf(h);
+  const forbes = () => coverageRows(env).find((r) => String(r[col('URL')]).includes('forbes.com'));
+  assert.equal(forbes()[col('Source route')], 'Talkwalker');
+  assert.match(forbes()[col('Normalised URL')], /^https:\/\/forbes\.com\//);
+  const humanNote = 'checked by Ben';
+  forbes()[col('Notes')] = humanNote;
+
+  env.mailbox.push({ id: 'fw9', labelIds: new Set(['L_Monitoring/Team Forward']), raw: rawPlain('fw9', 'Team <team.member@sedifly.com>', 'Great piece https://www.forbes.com/councils/forbesbusinesscouncil/2026/10/13/why-venture-capital-money-isnt-right-for-every-founder/?utm_source=x') });
+  const s = run(sb, 'runIngest()');
+  assert.equal(s.duplicates, 1);
+  assert.equal(coverageRows(env).length - 1, 2, 'no new row');
+  assert.equal(forbes()[col('Source route')], 'Talkwalker, Team forward');
+  assert.equal(forbes()[col('Found in')], 'Tool');
+  assert.equal(forbes()[col('Notes')], humanNote, 'human cells are untouched');
+  assert.deepEqual(labelsOf(env, 'fw9'), ['L_Monitoring/Processed']);
 });

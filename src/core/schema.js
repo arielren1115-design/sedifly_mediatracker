@@ -27,6 +27,16 @@ export const TABS = {
   'Run Log': RUN_LOG_HEADERS,
 };
 
+/** Number formats for date columns, so the time is visible. Published at is a date only. */
+export const DATETIME_FORMATS = {
+  'Detected at': 'yyyy-mm-dd hh:mm:ss',
+  'Instant alert sent': 'yyyy-mm-dd hh:mm:ss',
+  'Last updated': 'yyyy-mm-dd hh:mm:ss',
+  'Synced at': 'yyyy-mm-dd hh:mm:ss',
+  'Started at': 'yyyy-mm-dd hh:mm:ss',
+  'Published at': 'yyyy-mm-dd',
+};
+
 export const REVIEW_DECISIONS = ['Approve', 'Reject'];
 
 export const LABELS = [

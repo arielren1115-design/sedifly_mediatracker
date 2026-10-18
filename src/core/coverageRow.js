@@ -12,18 +12,19 @@ export function itemKey(item) {
 
 /**
  * @param {object} item RawItem
- * @param {{coverageId: string, now: Date}} ctx
+ * @param {{coverageId?: string|null, now: Date, normalisedUrl?: string|null}} ctx coverageId is omitted for Review Queue rows
  * @returns {Object<string, any>} header name to value
  */
-export function toCoverageRow(item, { coverageId, now }) {
+export function toCoverageRow(item, { coverageId, now, normalisedUrl }) {
   return {
-    'Coverage ID': coverageId,
+    ...(coverageId ? { 'Coverage ID': coverageId } : {}),
     'Detected at': now,
     'Published at': item.publishedAt || '',
     Channel: item.channelHint || '',
     Outlet: item.outlet || '',
     Title: item.title || '',
     URL: item.url || '',
+    'Normalised URL': normalisedUrl || '',
     Excerpt: String(item.snippet || item.forwarderNote || '').slice(0, 500),
     'Archive status': 'Pending',
     'Found in': 'Tool',

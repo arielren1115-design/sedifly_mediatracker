@@ -29,6 +29,11 @@ test('setup creates everything, and a second run changes nothing', async () => {
     assert.deepEqual(tabs.sort(), ['Coverage', 'Review Queue', 'Run Log']); // blank Sheet1 removed
     assert.equal(env.sheets[id].Coverage.rows[0][0], 'Coverage ID');
   }
+  const cov = env.sheets.x.Coverage;
+  const col = cov.rows[0].indexOf('Detected at') + 1;
+  assert.equal(cov.formats[col], 'yyyy-mm-dd hh:mm:ss');
+  assert.equal(cov.formats[cov.rows[0].indexOf('Published at') + 1], 'yyyy-mm-dd');
+  assert.equal(env.state.tz.x, 'Asia/Singapore');
   const snapshot = JSON.stringify([env.sheets, env.labels, env.triggers.map((t) => t.getHandlerFunction()), env.store]);
   const second = vm.runInContext('setup()', sb);
   assert.equal(second.labelsCreated.length, 0);

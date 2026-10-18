@@ -1,4 +1,4 @@
-import { missingHeaders, TABS, REVIEW_DECISIONS } from '../core/schema.js';
+import { missingHeaders, TABS, REVIEW_DECISIONS, DATETIME_FORMATS } from '../core/schema.js';
 
 /**
  * Create a tab if needed and append any missing headers. Never deletes or reorders columns.
@@ -34,6 +34,15 @@ export function ensureAllTabs(ss) {
   if (ss.getSpreadsheetTimeZone() !== 'Asia/Singapore') ss.setSpreadsheetTimeZone('Asia/Singapore');
   for (const [name, headers] of Object.entries(TABS)) summary[name] = ensureTab(ss, name, headers);
 
+  for (const [name, headers] of Object.entries(TABS)) {
+    const sheet = ss.getSheetByName(name);
+    const rowsBelowHeader = sheet.getMaxRows() - 1;
+    if (rowsBelowHeader < 1) continue;
+    for (const [header, format] of Object.entries(DATETIME_FORMATS)) {
+      if (headers.includes(header)) sheet.getRange(2, columnByHeader(sheet, header), rowsBelowHeader, 1).setNumberFormat(format);
+    }
+  }
+
   const review = ss.getSheetByName('Review Queue');
   const col = columnByHeader(review, 'Decision');
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(REVIEW_DECISIONS, true).setAllowInvalid(false).build();
@@ -63,26 +72,54 @@ export function readColumn(sheet, header) {
   return sheet.getRange(2, col, last - 1, 1).getValues().map((r) => r[0]);
 }
 
-/** Appends rows given as {header: value}. Unknown headers throw, missing ones stay blank. */
+/** Appends rows given as {header: value}. Unknown headers throw, missing ones stay blank. @returns {number} the first new row number */
 export function appendObjects(sheet, objects) {
-  if (!objects.length) return;
+  if (!objects.length) return sheet.getLastRow() + 1;
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
   for (const o of objects) {
     for (const k of Object.keys(o)) if (!headers.includes(k)) throw new Error(`Header not found: ${k} in ${sheet.getName()}`);
   }
   const rows = objects.map((o) => headers.map((h) => (h in o ? o[h] : '')));
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+  const first = sheet.getLastRow() + 1;
+  sheet.getRange(first, 1, rows.length, headers.length).setValues(rows);
+  return first;
 }
 
-/** Idempotency keys (Gmail message ID plus URL) of everything already in Coverage and Review Queue. */
-export function existingItemKeys(ss) {
-  const keys = new Set();
+/** Header names the script may rewrite on an existing row. Everything else is human owned or permanent (spec 6.1). */
+const UPDATABLE = ['Source route', 'Found in', 'Last updated'];
+
+/** Writes values into named cells of one existing row. Refuses any header that is not on the allowed list. */
+export function updateCells(sheet, rowNumber, values) {
+  for (const [header, value] of Object.entries(values)) {
+    if (!UPDATABLE.includes(header)) throw new Error(`The script may not change ${header}`);
+    sheet.getRange(rowNumber, columnByHeader(sheet, header), 1, 1).setValues([[value]]);
+  }
+}
+
+/**
+ * Rows already in Coverage and Review Queue, as dedupe index rows. Coverage comes first, so it wins over Review Queue.
+ * Columns are found by header name.
+ */
+export function readIndexRows(ss) {
+  const out = [];
   for (const name of ['Coverage', 'Review Queue']) {
     const sheet = ss.getSheetByName(name);
-    if (!sheet) continue;
-    const ids = readColumn(sheet, 'Gmail message ID');
-    const urls = readColumn(sheet, 'URL');
-    ids.forEach((id, i) => { if (id) keys.add(`${id}||${urls[i] || ''}`); });
+    if (!sheet || sheet.getLastRow() < 2) continue;
+    const values = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
+    const headers = values[0].map((h) => String(h).trim());
+    const col = (row, header) => { const i = headers.indexOf(header); return i < 0 ? '' : row[i]; };
+    values.slice(1).forEach((row, i) => out.push({
+      sheet: name,
+      rowNumber: i + 2,
+      coverageId: col(row, 'Coverage ID'),
+      url: col(row, 'URL'),
+      normalisedUrl: col(row, 'Normalised URL'),
+      title: col(row, 'Title'),
+      detectedAt: col(row, 'Detected at'),
+      sourceRoute: String(col(row, 'Source route')),
+      foundIn: String(col(row, 'Found in')),
+      gmailMessageId: col(row, 'Gmail message ID'),
+    }));
   }
-  return keys;
+  return out;
 }

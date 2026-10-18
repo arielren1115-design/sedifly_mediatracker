@@ -74,3 +74,29 @@ Apps Script has no `URL`, `URLSearchParams`, `TextDecoder` or `Buffer`. The wiri
 ### Open issues
 - The `Detected at`, `Instant alert sent` and `Last updated` columns display as dates only, although the stored value includes the time. Proposed fix: set a datetime number format in `setup()`. Detected at matters for SLA timing.
 - Still to do for M1: F5Bot parser and live F5Bot test. Waiting for the first real F5Bot email (the account was set up on 2026-10-18).
+
+## M2: Normalise, dedupe, entity match  (status: in progress, started 2026-10-18)
+
+DoD: (1) URL normalisation table test with at least 25 cases passes. (2) The same article via Google Alerts and Talkwalker is one row with both routes. (3) A person entity without an anchor term is not matched.
+
+### Done
+- Datetime display formats applied by `setup()` (Detected at, Instant alert sent, Last updated, Synced at, Started at as `yyyy-mm-dd hh:mm:ss`; Published at as `yyyy-mm-dd`). Re-run `setup` in DEV to apply.
+- DoD 1: `normalizeUrl` with 38 table cases plus 4 invalid inputs in `fixtures/urls/cases.json`.
+- DoD 2: dedupe by normalised URL. A repeat appends the route to `Source route`, adds `Tool` to `Found in`, and refreshes `Last updated`. No other cell is touched, and the script refuses to write any other column. Same title from a different URL within 7 days goes to the Review Queue as `Possible duplicate` with no Coverage ID. Items with no URL are never merged. Works within one batch and across runs. Tested locally and against the built bundle.
+- `Normalised URL` is now written on every new row. Existing rows with a blank value are normalised on the fly from their URL.
+- Real config files saved as `fixtures/config/entities.csv` and `fixtures/config/rules.csv`.
+
+### Spec notes
+- Reddit comment canonical form (`/comments/<id>/<commentId>`) looks the same as a post with a slug, so a Reddit comment cannot be normalised twice. Always normalise the original URL, never a stored one.
+- `To review` in the Run Log counts messages sent to `Monitoring/Review` and items sent to the Review Queue.
+
+### Blocked: the two config files do not match spec 6.4 (need owner decisions)
+**Monitored Entities** columns are: Entity ID, Entity name, Entity type (Brand, Founder, Strategist, Partner, Event), Primary search term, Aliases / variants, Default category, Monitoring status (Active, Recent watch), Alert sensitivity (Critical, High, Standard), Start date, Review / end date, Notes. The spec expected Name, Type, Match terms, Anchor terms, Active, Notes. Row 1 is a title, so headers are on row 2.
+1. How should matching work? Proposal: read Primary search term like a search query (quoted text is an exact phrase, loose words must all appear, everything must be present); each alias is an alternative exact phrase.
+2. "Joash Lee" alone is the primary term, but the first real Google Alert for that name was a different person (a video crew credit). Should the bare name match, or only with Sedifly, founder or CEO nearby (the aliases)?
+3. Several strategists are `"Name" Sedifly`, while a few are name only. The rules say strategist coverage counts even without Sedifly. Is `"Name" Sedifly` a hard requirement?
+4. Alert emails only carry a short snippet, which may lack the second word even when the web page has it. Proposal: also treat the alert's own name (Google subject, Talkwalker alert name, F5Bot keyword) as an entity hint, so valid results are not skipped.
+5. Events marked `Recent watch` have review dates that are already past (30 Sep 2026, 15 Sep 2026). Still monitor them, or treat them as inactive?
+6. Entity type mapping: Brand, Founder, Strategist, Partner, Event versus the spec's Company and Person.
+
+**Monitoring Rules** has `Index` 1 to 14, `Route` (Instant alert, Digest, Archive only), Trigger, Examples, Required system action, Human action, Target timing and Notes. There are no `MR-xxx` IDs and no Active column, so the spec's live rule list (MR-003, MR-005, ...) cannot be mapped to these rows without guessing. Not needed for M2, but needed before M3 (prompt) and M5 (routing). Needed from Ben: the MR-xxx IDs for each row, which rows are live in v1, and the taxonomy (Category and Priority values).
