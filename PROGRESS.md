@@ -63,6 +63,14 @@ Apps Script has no `URL`, `URLSearchParams`, `TextDecoder` or `Buffer`. The wiri
 7. The `From` header can be spoofed. Worth checking SPF and DMARC results in a later milestone.
 8. A Run Log row is written on every run, including idle ones, which is about 288 rows a day at 5 minute intervals. Revisit if that gets noisy.
 
-### Still to do for M1
-- F5Bot parser (waiting for the first real F5Bot email).
-- Live DEV test in Gmail, then mark M1 done.
+### Live DEV test results (2026-10-18, run by Ariel)
+- Found and fixed two Apps Script differences that local tests had hidden: no `URL` class, and Gmail body data arrives as a byte array, not base64 text. Each now has a regression test.
+- Team forwards: 4 emails processed, 6 rows (link only, screenshot only, link plus comment, three links). Screenshot-only forward has no URL and channel Social.
+- Review: 3 emails from a personal Gmail went to `Monitoring/Review` (outside the allowlist), as designed.
+- Unrelated email untouched. Verified by Ariel.
+- Native alerts: Talkwalker (2 rows, COV-000007 and COV-000008) and Google Alerts (1 row, COV-000009) parsed correctly on real Gmail, matching the fixtures. The redirect link was unwrapped.
+- Second run: Run Log shows an idle `OK` run with 0 messages and no new Coverage rows (idempotent).
+
+### Open issues
+- The `Detected at`, `Instant alert sent` and `Last updated` columns display as dates only, although the stored value includes the time. Proposed fix: set a datetime number format in `setup()`. Detected at matters for SLA timing.
+- Still to do for M1: F5Bot parser and live F5Bot test. Waiting for the first real F5Bot email (the account was set up on 2026-10-18).
