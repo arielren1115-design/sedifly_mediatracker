@@ -37,3 +37,22 @@
 ### Spec changes proposed
 - 6.2: reword to "all Coverage columns plus Review reason, Decision, Reviewed by, Synced at".
 - 5.1: state that placeholder values are allowed in DEV until the milestone that needs them.
+
+## M1: Ingest and parse  (status: in progress, started 2026-10-18)
+
+### Done so far
+- Team forward parser (`src/core/parsers/teamForward.js`) and sender allowlist check, built test first from real redacted fixtures. 21 of 21 tests pass.
+- Fixtures in `fixtures/emails/` with expected JSON. Redaction was scripted, see `fixtures/emails/README.md`. Two fixtures are synthetic and marked as such.
+- Test helper `tests/helpers/emlToMessage.js` (dev dependency `mailparser`).
+- Confirmed Talkwalker sender: `alerts@talkwalker.com`.
+
+### Still to do
+- Google Alerts, Talkwalker and F5Bot parsers (need native alert emails, not forwards).
+- Gmail adapter (per message listing and `modify`), ingest loop, Run Log writer, live DEV test.
+
+### Findings and choices to confirm
+1. Talkwalker item links in the forwarded alert are direct article URLs, not redirects.
+2. `RawItem` has no channel field, but spec 7.2 says screenshot-only forwards get `Channel = Social`. I added `channelHint` (`'Social'` or null). Proposed spec change: add `channelHint` to RawItem.
+3. Spec says `parse(message) → RawItem[]`, so the sender allowlist is a separate function `isTeamSender`, called by ingest before `parse`.
+4. A forward of an alert email yields one item per article link, with no title or snippet (the classifier has to work from the URL, or the page text under D12). Alert vendor links (unsubscribe, manage, tweet buttons) are skipped. A bare outlet homepage link is dropped when a deeper link on the same site is present.
+5. The `From` header can be spoofed, so the allowlist alone is not strong proof of sender. Worth a later look at SPF/DMARC results.
