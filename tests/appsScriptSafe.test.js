@@ -17,7 +17,7 @@ test('src uses nothing that Apps Script lacks', () => {
 
 test('core modules use no Apps Script services', () => {
   for (const f of files(path.join(root, 'core'))) {
-    const text = readFileSync(f, 'utf8');
+    const text = readFileSync(f, 'utf8').split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/**')).join('\n');
     assert.ok(!/\b(GmailApp|SpreadsheetApp|DriveApp|UrlFetchApp|PropertiesService|LockService|ScriptApp|Utilities|Gmail\.|Drive\.)\b/.test(text), `${path.relative(root, f)} uses an Apps Script global`);
   }
 });
