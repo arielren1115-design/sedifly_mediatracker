@@ -36,7 +36,7 @@ export function processBatch(deps) {
       if (reason) {
         deps.markReview(id, sourceLabel, reason);
         s.toReview++;
-        s.details.push({ id, outcome: 'review', reason });
+        s.details.push({ id, outcome: 'review', reason, from: message.from, subject: message.subject });
         continue;
       }
       s.itemsParsed += items.length;

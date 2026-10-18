@@ -48,6 +48,9 @@ test('every message ends as rows, a review label, never dropped', async () => {
   assert.equal(w.rows.length, 7);
   assert.equal(new Set(w.rows.map((r) => r['Coverage ID'])).size, 7);
   assert.equal(s.details.length, 7);
+  const outsider = s.details.find((d) => d.id === 'outsider');
+  assert.match(outsider.from, /outsider@example\.com/);
+  assert.equal(outsider.subject, 'test');
 });
 
 test('a second run over the same state does nothing', async () => {
