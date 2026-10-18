@@ -62,7 +62,15 @@ export function makeEnv(props) {
     }) },
     Utilities: {
       getUuid: () => `uuid-${Math.random().toString(16).slice(2)}`,
-      base64DecodeWebSafe: (d) => Buffer.from(d, 'base64url'),
+      // Strict like Apps Script: wrong alphabet or missing padding throws.
+      base64Decode: (d) => {
+        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(d) || d.length % 4) throw new Error('Could not decode string.');
+        return Buffer.from(d, 'base64');
+      },
+      base64DecodeWebSafe: (d) => {
+        if (!/^[A-Za-z0-9_-]*={0,2}$/.test(d) || d.length % 4) throw new Error('Could not decode string.');
+        return Buffer.from(d, 'base64url');
+      },
       newBlob: (buf) => ({ getDataAsString: (cs) => new TextDecoder(cs || 'utf-8').decode(buf) }),
     },
     SpreadsheetApp: { openById: ssFor, newDataValidation: () => ({ requireValueInList() { return this; }, setAllowInvalid() { return this; }, build() { return {}; } }) },

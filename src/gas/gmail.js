@@ -1,5 +1,6 @@
 import { LABELS } from '../core/schema.js';
 import { fromGmailApi } from '../core/gmailMessage.js';
+import { toStandardBase64 } from '../core/base64.js';
 import { LABEL_TEAM_FORWARD, LABEL_AUTOMATED } from '../core/ingestRouting.js';
 
 /** Create any missing Monitoring/* labels with the Gmail advanced service. @returns {string[]} names created */
@@ -46,7 +47,20 @@ export function listCandidates(labelIds, max) {
   return out;
 }
 
-const decodeBody = (data, charset) => Utilities.newBlob(Utilities.base64DecodeWebSafe(data)).getDataAsString(charset || 'UTF-8');
+/** Decodes a Gmail body part. Errors say what was being decoded, to make Apps Script differences easy to spot. */
+function decodeBody(data, charset) {
+  const std = toStandardBase64(data);
+  try {
+    const blob = Utilities.newBlob(Utilities.base64Decode(std));
+    try {
+      return blob.getDataAsString(charset || 'UTF-8');
+    } catch (e) {
+      return blob.getDataAsString('UTF-8');
+    }
+  } catch (e) {
+    throw new Error(`Could not decode message body (length ${String(data).length}, charset ${charset || 'none'}): ${e.message}`);
+  }
+}
 
 /** @param {string} id @returns {object} message in the shape the parsers expect */
 export function getMessage(id) {
