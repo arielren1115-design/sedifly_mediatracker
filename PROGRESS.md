@@ -38,21 +38,31 @@
 - 6.2: reword to "all Coverage columns plus Review reason, Decision, Reviewed by, Synced at".
 - 5.1: state that placeholder values are allowed in DEV until the milestone that needs them.
 
-## M1: Ingest and parse  (status: in progress, started 2026-10-18)
+## M1: Ingest and parse  (status: code complete, live DEV test pending)
 
-### Done so far
-- Team forward parser (`src/core/parsers/teamForward.js`) and sender allowlist check, built test first from real redacted fixtures. 21 of 21 tests pass.
-- Fixtures in `fixtures/emails/` with expected JSON. Redaction was scripted, see `fixtures/emails/README.md`. Two fixtures are synthetic and marked as such.
-- Test helper `tests/helpers/emlToMessage.js` (dev dependency `mailparser`).
-- Confirmed Talkwalker sender: `alerts@talkwalker.com`.
+### Built
+- Parsers, all test first from real redacted fixtures: team forward, Google Alerts (HTML microdata, redirect unwrapped), Talkwalker (HTML, direct links, dd/mm/yy dates). **F5Bot is not built**: no real email yet.
+- Gmail layer: per message listing and relabelling with the advanced service (one `modify` call adds Processed or Review and removes the source label). Team forwards are read first.
+- Sender based routing, sender allowlist, Gmail API to parser message conversion.
+- Ingest batch loop with lock, batch size, time budget, and per item idempotency (Gmail message ID plus URL, checked against Coverage and Review Queue).
+- Provisional Coverage rows (Coverage ID, Detected at, Published at, Outlet, Title, URL, Excerpt, Source route, Found in = Tool, Verification = Needs verification, Archive status = Pending, Gmail message ID, Logged by, Last updated). Entity, category, priority and normalised URL stay blank until M2 and M3.
+- Run Log writer, one row per run. `LAST_SUCCESS_AT` is set after an OK run.
+- `setup()` now also sets both sheets to the Asia/Singapore timezone.
+- Tests: 50 passing. They include a run of the real built bundle against fake Gmail and Sheets, which reproduces the blocker 2 scenario locally (unrelated mail untouched, bad mail labelled Review, second run writes nothing new).
 
-### Still to do
-- Google Alerts, Talkwalker and F5Bot parsers (need native alert emails, not forwards).
-- Gmail adapter (per message listing and `modify`), ingest loop, Run Log writer, live DEV test.
+### Finding worth knowing
+Apps Script has no `URL`, `URLSearchParams`, `TextDecoder` or `Buffer`. The wiring test caught `new URL` silently dropping every forwarded link. All URL handling now uses `src/core/urlParts.js`, and a guard test fails if forbidden globals return to `src/`.
 
-### Findings and choices to confirm
-1. Talkwalker item links in the forwarded alert are direct article URLs, not redirects.
-2. `RawItem` has no channel field, but spec 7.2 says screenshot-only forwards get `Channel = Social`. I added `channelHint` (`'Social'` or null). Proposed spec change: add `channelHint` to RawItem.
-3. Spec says `parse(message) → RawItem[]`, so the sender allowlist is a separate function `isTeamSender`, called by ingest before `parse`.
-4. A forward of an alert email yields one item per article link, with no title or snippet (the classifier has to work from the URL, or the page text under D12). Alert vendor links (unsubscribe, manage, tweet buttons) are skipped. A bare outlet homepage link is dropped when a deeper link on the same site is present.
-5. The `From` header can be spoofed, so the allowlist alone is not strong proof of sender. Worth a later look at SPF/DMARC results.
+### Choices to confirm
+1. `RawItem` gets `channelHint` (Social for screenshot-only forwards). Proposed spec change.
+2. `parse(message) -> RawItem[]` keeps the spec signature. Sender checks and parser choice live in `ingestRouting.js`.
+3. Forwarded alerts yield one item per article link, with no title or snippet (accepted by Ariel, 2026-10-18). Alert vendor links are skipped, and a bare homepage is dropped when a deeper link on the same site is present.
+4. Alert vendor sender addresses (Google Alerts, Talkwalker) are constants in `ingestRouting.js`, because they identify public services and are not secrets. This is my reading of CLAUDE.md rule 7. Please confirm.
+5. Talkwalker dates are read as day/month/year. A different alert language or locale could change that. Published at is stored as a date only, because the email gives no time zone.
+6. Provisional rows are written in M1 so the DEV test can show "processed once". They can be cleared from the DEV sheet before M2.
+7. The `From` header can be spoofed. Worth checking SPF and DMARC results in a later milestone.
+8. A Run Log row is written on every run, including idle ones, which is about 288 rows a day at 5 minute intervals. Revisit if that gets noisy.
+
+### Still to do for M1
+- F5Bot parser (waiting for the first real F5Bot email).
+- Live DEV test in Gmail, then mark M1 done.

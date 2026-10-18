@@ -31,6 +31,7 @@ export function columnByHeader(sheet, header) {
 /** Create all tabs for one spreadsheet. @returns {object} summary of changes */
 export function ensureAllTabs(ss) {
   const summary = {};
+  if (ss.getSpreadsheetTimeZone() !== 'Asia/Singapore') ss.setSpreadsheetTimeZone('Asia/Singapore');
   for (const [name, headers] of Object.entries(TABS)) summary[name] = ensureTab(ss, name, headers);
 
   const review = ss.getSheetByName('Review Queue');
@@ -52,4 +53,36 @@ export function nextCoverageIdFromSheet(ss) {
   const ids = sheet.getRange(2, col, last - 1, 1).getValues().flat();
   const nums = ids.map((v) => /^COV-(\d+)$/.exec(String(v))).filter(Boolean).map((m) => Number(m[1]));
   return nums.length ? Math.max(...nums) + 1 : 1;
+}
+
+/** Values of one column (by header name), without the header row. */
+export function readColumn(sheet, header) {
+  const last = sheet.getLastRow();
+  if (last < 2) return [];
+  const col = columnByHeader(sheet, header);
+  return sheet.getRange(2, col, last - 1, 1).getValues().map((r) => r[0]);
+}
+
+/** Appends rows given as {header: value}. Unknown headers throw, missing ones stay blank. */
+export function appendObjects(sheet, objects) {
+  if (!objects.length) return;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
+  for (const o of objects) {
+    for (const k of Object.keys(o)) if (!headers.includes(k)) throw new Error(`Header not found: ${k} in ${sheet.getName()}`);
+  }
+  const rows = objects.map((o) => headers.map((h) => (h in o ? o[h] : '')));
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+}
+
+/** Idempotency keys (Gmail message ID plus URL) of everything already in Coverage and Review Queue. */
+export function existingItemKeys(ss) {
+  const keys = new Set();
+  for (const name of ['Coverage', 'Review Queue']) {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) continue;
+    const ids = readColumn(sheet, 'Gmail message ID');
+    const urls = readColumn(sheet, 'URL');
+    ids.forEach((id, i) => { if (id) keys.add(`${id}||${urls[i] || ''}`); });
+  }
+  return keys;
 }

@@ -1,4 +1,5 @@
 // Team forward parser (BUILD_SPEC 7.2). Pure: no Apps Script globals.
+import { parseUrl, bareHost } from '../urlParts.js';
 
 const URL_RE = /https?:\/\/[^\s<>"]+/gi;
 const FORWARD_MARKER_RE = /^\s*(-{2,}\s*Forwarded message\s*-{2,}|Begin forwarded message:|-{2,}\s*Original Message\s*-{2,}|On .+ wrote:)\s*$/im;
@@ -34,11 +35,11 @@ export function extractEmail(from) {
 /** @param {string} url @returns {boolean} true for unsubscribe, alert vendor and share links */
 export function isBoilerplateUrl(url) {
   if (/unsubscribe|opt-?out/i.test(url)) return true;
-  let u;
-  try { u = new URL(url); } catch { return true; }
-  const host = u.hostname.toLowerCase().replace(/^www\./, '');
+  const p = parseUrl(url);
+  if (!p) return true;
+  const host = bareHost(url);
   if (BOILERPLATE_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return true;
-  return BOILERPLATE_PATHS.some(([h, p]) => host === h && u.pathname.toLowerCase().startsWith(p));
+  return BOILERPLATE_PATHS.some(([h, path]) => host === h && p.pathname.toLowerCase().startsWith(path));
 }
 
 /** Drops the signature (everything after the last "-- " line). */
@@ -69,16 +70,15 @@ function extractUrls(message) {
   return dropOutletHomepages(out);
 }
 
-const hostOf = (url) => new URL(url).hostname.toLowerCase().replace(/^www\./, '');
-const isRootUrl = (url) => { const u = new URL(url); return u.pathname === '/' && !u.search; };
+const isRootUrl = (url) => { const p = parseUrl(url); return !!p && p.pathname === '/' && !p.search; };
 
 /**
  * Forwarded alerts end each item with a link to the outlet's homepage. Drop a bare homepage when a deeper
  * link on the same site is present. A lone homepage is kept, because a person may forward one on purpose.
  */
 function dropOutletHomepages(urls) {
-  const deepHosts = new Set(urls.filter((u) => !isRootUrl(u)).map(hostOf));
-  return urls.filter((u) => !(isRootUrl(u) && deepHosts.has(hostOf(u))));
+  const deepHosts = new Set(urls.filter((u) => !isRootUrl(u)).map(bareHost));
+  return urls.filter((u) => !(isRootUrl(u) && deepHosts.has(bareHost(u))));
 }
 
 /** Text the forwarder wrote above the forwarded content, with links removed. */

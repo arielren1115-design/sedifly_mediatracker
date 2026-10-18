@@ -5,7 +5,7 @@ import { simpleParser } from 'mailparser';
 
 /** @param {string} path @param {string} id */
 export async function emlToMessage(path, id) {
-  const p = await simpleParser(readFileSync(path));
+  const p = await simpleParser(readFileSync(path), { skipHtmlToText: true });
   return {
     id,
     from: p.from?.text ?? '',
