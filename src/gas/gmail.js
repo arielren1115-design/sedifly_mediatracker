@@ -47,18 +47,22 @@ export function listCandidates(labelIds, max) {
   return out;
 }
 
-/** Decodes a Gmail body part. Errors say what was being decoded, to make Apps Script differences easy to spot. */
+/**
+ * Decodes a Gmail body part. The Apps Script Gmail service returns body data as an array of bytes, while the REST API
+ * returns a base64 string, so both are accepted. Errors say what was received, to make differences easy to spot.
+ */
 function decodeBody(data, charset) {
-  const std = toStandardBase64(data);
   try {
-    const blob = Utilities.newBlob(Utilities.base64Decode(std));
+    const bytes = typeof data === 'string' ? Utilities.base64Decode(toStandardBase64(data)) : Array.from(data);
+    const blob = Utilities.newBlob(bytes);
     try {
       return blob.getDataAsString(charset || 'UTF-8');
     } catch (e) {
       return blob.getDataAsString('UTF-8');
     }
   } catch (e) {
-    throw new Error(`Could not decode message body (length ${String(data).length}, charset ${charset || 'none'}): ${e.message}`);
+    const kind = typeof data === 'string' ? 'string' : Array.isArray(data) ? 'array' : typeof data;
+    throw new Error(`Could not decode message body (${kind}, length ${data && data.length}, charset ${charset || 'none'}): ${e.message}`);
   }
 }
 

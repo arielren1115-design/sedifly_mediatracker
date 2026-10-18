@@ -36,7 +36,7 @@ export function makeEnv(props) {
   const triggers = [];
   const mailbox = []; // {id, labelIds:Set, raw}
   const store = { ...props };
-  const state = { locked: false, tz: {} };
+  const state = { locked: false, tz: {}, dataFormat: 'bytes' }; // Gmail body data: 'bytes' (signed byte arrays, as Apps Script returns) or 'string'
   const ssFor = (id) => {
     sheets[id] = sheets[id] || { Sheet1: fakeSheet('Sheet1') };
     const map = sheets[id];
@@ -64,14 +64,14 @@ export function makeEnv(props) {
       getUuid: () => `uuid-${Math.random().toString(16).slice(2)}`,
       // Strict like Apps Script: wrong alphabet or missing padding throws.
       base64Decode: (d) => {
-        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(d) || d.length % 4) throw new Error('Could not decode string.');
+        if (typeof d !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(d) || d.length % 4) throw new Error('Could not decode string.');
         return Buffer.from(d, 'base64');
       },
       base64DecodeWebSafe: (d) => {
-        if (!/^[A-Za-z0-9_-]*={0,2}$/.test(d) || d.length % 4) throw new Error('Could not decode string.');
+        if (typeof d !== 'string' || !/^[A-Za-z0-9_-]*={0,2}$/.test(d) || d.length % 4) throw new Error('Could not decode string.');
         return Buffer.from(d, 'base64url');
       },
-      newBlob: (buf) => ({ getDataAsString: (cs) => new TextDecoder(cs || 'utf-8').decode(buf) }),
+      newBlob: (bytes) => ({ getDataAsString: (cs) => new TextDecoder(cs || 'utf-8').decode(Uint8Array.from(bytes, (b) => b & 255)) }),
     },
     SpreadsheetApp: { openById: ssFor, newDataValidation: () => ({ requireValueInList() { return this; }, setAllowInvalid() { return this; }, build() { return {}; } }) },
     Gmail: { Users: {
@@ -81,7 +81,12 @@ export function makeEnv(props) {
       },
       Messages: {
         list: (_me, opts) => ({ messages: mailbox.filter((m) => opts.labelIds.every((l) => m.labelIds.has(l))).slice(0, opts.maxResults).map((m) => ({ id: m.id })) }),
-        get: (_me, id) => mailbox.find((m) => m.id === id).raw,
+        get: (_me, id) => {
+          const raw = mailbox.find((m) => m.id === id).raw;
+          if (state.dataFormat === 'string') return raw;
+          const convert = (part) => ({ ...part, body: part.body && part.body.data ? { ...part.body, data: Array.from(Buffer.from(part.body.data, 'base64url'), (b) => (b > 127 ? b - 256 : b)) } : part.body, parts: part.parts && part.parts.map(convert) });
+          return { ...raw, payload: convert(raw.payload) };
+        },
         modify: (body, _me, id) => {
           const m = mailbox.find((x) => x.id === id);
           for (const l of body.removeLabelIds || []) m.labelIds.delete(l);

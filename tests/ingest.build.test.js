@@ -8,8 +8,9 @@ import { emlToGmailApi } from './helpers/emlToGmailApi.js';
 const dir = new URL('../fixtures/emails/', import.meta.url).pathname;
 const run = (sb, code) => vm.runInContext(code, sb);
 
-async function ready() {
+async function ready(dataFormat = 'bytes') {
   const env = makeEnv(goodProps());
+  env.state.dataFormat = dataFormat;
   const sb = await load(env);
   run(sb, 'setup()');
   const id = (name) => `L_Monitoring/${name}`;
@@ -22,8 +23,8 @@ const coverageRows = (env) => env.sheets.x.Coverage.rows;
 const runLogRows = (env) => env.sheets.x['Run Log'].rows;
 const labelsOf = (env, id) => [...env.mailbox.find((m) => m.id === id).labelIds].sort();
 
-test('blocker 2: forwards and alerts are processed once, unrelated mail is untouched, bad mail goes to review', async () => {
-  const { env, sb, add } = await ready();
+for (const format of ['bytes', 'string']) test(`blocker 2 with ${format} body data: forwards and alerts are processed once, unrelated mail is untouched, bad mail goes to review`, async () => {
+  const { env, sb, add } = await ready(format);
   await add('f1', 'team_forward_link_only', ['Monitoring/Team Forward', 'INBOX']);
   await add('f2', 'team_forward_multiple_links', ['Monitoring/Team Forward']);
   await add('f3', 'team_forward_screenshot_only', ['Monitoring/Team Forward']);
