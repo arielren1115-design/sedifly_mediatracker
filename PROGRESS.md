@@ -57,7 +57,7 @@ Apps Script has no `URL`, `URLSearchParams`, `TextDecoder` or `Buffer`. The wiri
 1. `RawItem` gets `channelHint` (Social for screenshot-only forwards). Proposed spec change.
 2. `parse(message) -> RawItem[]` keeps the spec signature. Sender checks and parser choice live in `ingestRouting.js`.
 3. Forwarded alerts yield one item per article link, with no title or snippet (accepted by Ariel, 2026-10-18). Alert vendor links are skipped, and a bare homepage is dropped when a deeper link on the same site is present.
-4. Alert vendor sender addresses (Google Alerts, Talkwalker) are constants in `ingestRouting.js`, because they identify public services and are not secrets. This is my reading of CLAUDE.md rule 7. Please confirm.
+4. Alert vendor sender addresses (Google Alerts, Talkwalker) are constants in `ingestRouting.js`, because they identify public services and are not secrets. Confirmed by Ariel on 2026-10-18 as acceptable under rule 7.
 5. Talkwalker dates are read as day/month/year. A different alert language or locale could change that. Published at is stored as a date only, because the email gives no time zone.
 6. Provisional rows are written in M1 so the DEV test can show "processed once". They can be cleared from the DEV sheet before M2.
 7. The `From` header can be spoofed. Worth checking SPF and DMARC results in a later milestone.
