@@ -82,6 +82,7 @@ export function buildUserPayload({ item, candidates, entities, rules, today }) {
       published_date: item.publishedAt,
       forwarder_note: item.forwarderNote,
       alert_name: item.alertName,
+      item_kind: item.itemKind || null,
       channel_hint: channelFromUrl(item.url) || item.channelHint || null,
     },
     candidate_entities: candidates,

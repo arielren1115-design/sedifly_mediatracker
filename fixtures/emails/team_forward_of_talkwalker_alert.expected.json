@@ -12,7 +12,8 @@
     "forwarderNote": null,
     "channelHint": null,
     "attachments": [],
-    "alertName": null
+    "alertName": null,
+    "itemKind": null
   },
   {
     "gmailMessageId": "fx-tw-fwd",
@@ -27,7 +28,8 @@
     "forwarderNote": null,
     "channelHint": null,
     "attachments": [],
-    "alertName": null
+    "alertName": null,
+    "itemKind": null
   },
   {
     "gmailMessageId": "fx-tw-fwd",
@@ -42,6 +44,7 @@
     "forwarderNote": null,
     "channelHint": null,
     "attachments": [],
-    "alertName": null
+    "alertName": null,
+    "itemKind": null
   }
 ]

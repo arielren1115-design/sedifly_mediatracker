@@ -2,14 +2,16 @@
 import { parse as parseTeamForward, isTeamSender, extractEmail } from './parsers/teamForward.js';
 import { parse as parseGoogleAlerts } from './parsers/googleAlerts.js';
 import { parse as parseTalkwalker } from './parsers/talkwalker.js';
+import { parse as parseF5Bot } from './parsers/f5bot.js';
 
 export const LABEL_AUTOMATED = 'Monitoring/Automated';
 export const LABEL_TEAM_FORWARD = 'Monitoring/Team Forward';
 
-/** Alert vendor sender addresses. These identify public services and are not secrets. F5Bot is added once a real email is seen. */
+/** Alert vendor sender addresses. These identify public services and are not secrets. */
 const ALERT_SENDERS = {
   'googlealerts-noreply@google.com': parseGoogleAlerts,
   'alerts@talkwalker.com': parseTalkwalker,
+  'alerts@f5bot.com': parseF5Bot,
 };
 
 /**

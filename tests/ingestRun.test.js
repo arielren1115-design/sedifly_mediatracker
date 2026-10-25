@@ -308,3 +308,16 @@ test('processing is refused if no monitored entities were loaded', async () => {
   const w = await world();
   assert.throws(() => processBatch(w.deps({ entities: [] })), /monitored entities/i);
 });
+
+test('two comments on the same Reddit thread are two items, never merged as syndicated copies', async () => {
+  const w = await world();
+  const msg = await emlToMessage(`${dir}f5bot_alert_green_tea.eml`, 'f5');
+  w.messages.f5 = { ...msg, htmlBody: msg.htmlBody.replaceAll('green tea', 'Sedifly').replaceAll('Green tea', 'Sedifly').replaceAll('Green Tea', 'Sedifly') };
+  w.labels.f5 = 'Monitoring/Automated';
+  const s = processBatch(w.deps(only(w, 'f5')));
+  assert.equal(s.itemsParsed, 11);
+  assert.equal(w.coverage.length, 11, 'all eleven mentions are kept, including both comments titled "Lifelong water drinker"');
+  assert.equal(w.updates.filter((u) => u.values['Syndicated copies'] !== undefined).length, 0);
+  assert.deepEqual(w.coverage.map((r) => r.Channel), Array(11).fill('Reddit'));
+  assert.deepEqual(w.coverage.map((r) => r['Source type']), Array(11).fill('Social Media'));
+});

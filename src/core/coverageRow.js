@@ -1,4 +1,8 @@
 // Builds a Coverage tab row (by header name) from a RawItem. Entity, category and priority come in later milestones.
+import { channelFromUrl } from './channel.js';
+
+/** Social media, Reddit and Hacker News links are Source type Social Media (owners, 2026-10-25). */
+const SOCIAL_CHANNELS = ['Social', 'Reddit', 'Hacker News'];
 
 /** @param {number} n @returns {string} e.g. COV-000001 */
 export function formatCoverageId(n) {
@@ -16,11 +20,13 @@ export function itemKey(item) {
  * @returns {Object<string, any>} header name to value
  */
 export function toCoverageRow(item, { coverageId, now, normalisedUrl }) {
+  const channel = item.channelHint || channelFromUrl(item.url) || '';
   return {
     ...(coverageId ? { 'Coverage ID': coverageId } : {}),
     'Detected at': now,
     'Published at': item.publishedAt || '',
-    Channel: item.channelHint || '',
+    Channel: channel,
+    ...(SOCIAL_CHANNELS.includes(channel) ? { 'Source type': 'Social Media' } : {}),
     Outlet: item.outlet || '',
     Title: item.title || '',
     URL: item.url || '',

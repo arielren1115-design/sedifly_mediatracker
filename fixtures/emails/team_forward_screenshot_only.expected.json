@@ -18,6 +18,7 @@
         "blobRef": "att-0"
       }
     ],
-    "alertName": null
+    "alertName": null,
+    "itemKind": null
   }
 ]

@@ -12,7 +12,8 @@
     "forwarderNote": null,
     "channelHint": null,
     "attachments": [],
-    "alertName": "Sedifly"
+    "alertName": "Sedifly",
+    "itemKind": null
   },
   {
     "gmailMessageId": "fx-tw",
@@ -27,6 +28,7 @@
     "forwarderNote": null,
     "channelHint": null,
     "attachments": [],
-    "alertName": "Sedifly"
+    "alertName": "Sedifly",
+    "itemKind": null
   }
 ]

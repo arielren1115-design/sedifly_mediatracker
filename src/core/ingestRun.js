@@ -2,7 +2,7 @@
 import { selectParser } from './ingestRouting.js';
 import { toCoverageRow, itemKey } from './coverageRow.js';
 import { normalizeUrl } from './normalizeUrl.js';
-import { mergeList } from './dedupe.js';
+import { mergeList, isRedditCommentUrl } from './dedupe.js';
 import { matchEntities } from './entities.js';
 
 /**
@@ -100,7 +100,8 @@ function handleItem(deps, item, counts) {
   };
 
   // Spec 8.2, owner decision A (2026-10-25): the same headline on another site is a syndicated copy. It adds no row, it is counted.
-  const similar = norm && item.title ? index.similarTitle(item.title, norm, now.getTime()) : null;
+  const isComment = item.itemKind === 'comment' || isRedditCommentUrl(norm);
+  const similar = norm && item.title && !isComment ? index.similarTitle(item.title, norm, now.getTime()) : null;
   if (similar) {
     const copies = similar.syndicatedCopies + 1;
     deps.updateExisting(similar, { 'Syndicated copies': copies, 'Last updated': now });

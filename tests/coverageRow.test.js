@@ -31,6 +31,7 @@ test('row uses only real headers, fills provisional fields, and trims the excerp
 test('screenshot-only forward keeps the Social hint and uses the note as excerpt', () => {
   const row = toCoverageRow({ ...item, url: null, snippet: null, forwarderNote: 'see this', channelHint: 'Social' }, { coverageId: 'COV-000008', now });
   assert.equal(row.Channel, 'Social');
+  assert.equal(row['Source type'], 'Social Media');
   assert.equal(row.Excerpt, 'see this');
   assert.equal(row.URL, '');
 });
@@ -38,4 +39,13 @@ test('screenshot-only forward keeps the Social hint and uses the note as excerpt
 test('item key is message plus url, with a stable key for items without a url', () => {
   assert.equal(itemKey(item), 'm1||https://a.com/x');
   assert.equal(itemKey({ gmailMessageId: 'm2', url: null }), 'm2||');
+});
+
+test('the link decides channel and source type for social links, and leaves other links to the classifier', () => {
+  const at = (url) => toCoverageRow({ ...item, url, channelHint: null }, { coverageId: 'COV-000009', now });
+  assert.equal(at('https://www.reddit.com/r/tea/comments/1/c/2').Channel, 'Reddit');
+  assert.equal(at('https://news.ycombinator.com/item?id=1').Channel, 'Hacker News');
+  assert.equal(at('https://www.linkedin.com/posts/x')['Source type'], 'Social Media');
+  assert.equal(at('https://www.forbes.com/a').Channel, '');
+  assert.equal(at('https://www.forbes.com/a')['Source type'], undefined);
 });

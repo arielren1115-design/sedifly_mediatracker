@@ -170,3 +170,22 @@ test('a syndicated copy raises the Syndicated copies cell on the existing row an
   assert.equal(forbes()[col('Source route')], 'Talkwalker');
   assert.ok(forbes()[col('Last updated')] instanceof Date || typeof forbes()[col('Last updated')] === 'object');
 });
+
+test('an F5Bot alert goes through Gmail and the built bundle: every mention becomes a row, with channel and source type', async () => {
+  const { env, sb } = await ready();
+  const raw = await emlToGmailApi(`${dir}f5bot_alert_green_tea.eml`, 'f5');
+  const html = raw.payload.parts.find((p) => p.mimeType === 'text/html');
+  const text = Buffer.from(html.body.data, 'base64url').toString('utf8').replaceAll('green tea', 'Sedifly').replaceAll('Green tea', 'Sedifly').replaceAll('Green Tea', 'Sedifly');
+  html.body.data = Buffer.from(text, 'utf8').toString('base64url');
+  raw.payload.headers = raw.payload.headers.map((h) => (h.name === 'From' ? { ...h, value: 'F5Bot Alerts <alerts@f5bot.com>' } : h));
+  env.mailbox.push({ id: 'f5', labelIds: new Set(['L_Monitoring/Automated']), raw });
+  const s = run(sb, 'runIngest()');
+  assert.equal(s.status, 'OK');
+  assert.equal(coverageRows(env).length - 1, 11);
+  const headers = coverageRows(env)[0];
+  const col = (h) => headers.indexOf(h);
+  const rows = coverageRows(env).slice(1);
+  assert.ok(rows.every((r) => r[col('Source route')] === 'F5Bot' && r[col('Channel')] === 'Reddit' && r[col('Source type')] === 'Social Media'));
+  assert.ok(rows.every((r) => String(r[col('URL')]).startsWith('https://www.reddit.com/')));
+  assert.deepEqual(labelsOf(env, 'f5'), ['L_Monitoring/Processed']);
+});

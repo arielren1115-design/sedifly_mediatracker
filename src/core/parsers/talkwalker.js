@@ -52,6 +52,7 @@ export function parse(message) {
       forwarderNote: null,
       alertName: alertNameOf(message.subject),
       channelHint: null,
+      itemKind: null,
       attachments: [],
     };
   });

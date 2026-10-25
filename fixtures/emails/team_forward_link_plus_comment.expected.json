@@ -12,6 +12,7 @@
     "forwarderNote": "Nice mention, can we reply?",
     "channelHint": null,
     "attachments": [],
-    "alertName": null
+    "alertName": null,
+    "itemKind": null
   }
 ]

@@ -5,6 +5,9 @@ const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
 /** Shorter headlines ("Home", "News") are too generic to treat as the same story. */
 const MIN_TITLE_WORDS = 5;
 
+/** A normalised Reddit comment link (reddit.com/r/<sub>/comments/<post>/<comment>). Comments are distinct content, never copies. */
+export const isRedditCommentUrl = (norm) => /^https:\/\/reddit\.com\/r\/[^/]+\/comments\/[^/]+\/[^/]+$/.test(norm || '');
+
 /** Lower case, punctuation removed, spaces collapsed. @param {string|null} title @returns {string} */
 export function normalizeTitle(title) {
   return String(title || '').toLowerCase()
@@ -52,7 +55,7 @@ export function createIndex(rows) {
     similarTitle(title, norm, nowMs) {
       const t = normalizeTitle(title);
       if (t.split(' ').length < MIN_TITLE_WORDS) return null;
-      return entries.find((e) => e.titleNorm === t && e.norm !== norm && Math.abs(nowMs - timeOf(e.detectedAt)) <= SEVEN_DAYS_MS) || null;
+      return entries.find((e) => e.titleNorm === t && e.norm !== norm && !isRedditCommentUrl(e.norm) && Math.abs(nowMs - timeOf(e.detectedAt)) <= SEVEN_DAYS_MS) || null;
     },
     setCopies(entry, count) {
       entry.syndicatedCopies = count;
