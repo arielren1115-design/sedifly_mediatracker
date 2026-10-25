@@ -145,7 +145,7 @@ Earlier open questions (now answered, kept for the record):
 3. Column names differ from spec 6.4 (Index for Rule ID, Route for Action, Default priority for Priority). The loader will use the sheet's names.
 4. A CSV export of the full tab is still needed for the classifier prompt and routing tests (the screenshot truncates long text).
 
-## M3: Classification and Review Queue  (status: in progress, started 2026-10-25)
+## M3: Classification and Review Queue  (status: code complete 2026-10-25; DoD needs the API key and golden set)
 
 DoD: golden set eval report committed with the 9.4 targets met or gaps explained; invalid output, low confidence and API failure paths each demonstrated; Approve and Reject sync works.
 
@@ -202,3 +202,43 @@ Wire classification into the ingest flow (after the entity gate, with the D12 pa
 - Open risk: F5Bot can pause a keyword ("Keyword has hit its daily limit and was paused, back in 24 hours"). While paused, mentions are not emailed and so cannot be seen. A broad keyword will hit this; a keyword for a rare name like Sedifly is unlikely to. Worth surfacing in the Run Log or digest later (M5 or M6).
 - Remaining for M1: the live F5Bot test in DEV (Gmail filter on `alerts@f5bot.com`, then check the Coverage tab).
 - Tests: 194 passing, including a run of the built bundle with a fake Gmail.
+
+
+### 2026-10-25 end of day: M3 code complete
+- **Classification is wired into ingest.** After the entity gate, each item goes through one shared step (`core/classifyStep.js`, also used by the eval). Valid and confident: Coverage row with Entity, Channel, Source type, Outlet, Title, Published at, Category, Priority, Sentiment, Rules matched, Classifier confidence, and Verification `Verified`. Low confidence: one re-read of the public page (never for social links), then Review Queue `Low confidence` with the model's values filled in. Invalid output: Review Queue `Invalid classifier output`. Not relevant: skipped and listed in the Run Log for alerts, Review Queue for team forwards. API failure: the message stays unlabelled and the run shows PARTIAL or FAILED; the third failed run sends the item to the Review Queue as `Classifier unavailable`. The time budget is checked before each call.
+- **While `ANTHROPIC_API_KEY` is a placeholder, ingest writes rows without classification** (as in M2) and logs that. DEV is in this state. Once Joash's key is set, the classifier turns on with no code change.
+- **Review sync** (`runReviewSync`): Approve copies the possibly edited row into Coverage with a new ID and `Verified`, then stamps `Synced at`. Reject only stamps `Synced at`. Approved rows missing Entity, Category or Priority wait. A row whose link is already in Coverage is stamped, not copied twice. Run twice, nothing is copied twice.
+- **Eval script** (`npm run eval`, needs `ANTHROPIC_API_KEY` in your terminal, never in a file): reads `fixtures/golden/golden.csv`, runs each case through the same gate and classifier step as live, and writes `reports/eval_<date>.md` with per field accuracy, share of logged items with every field right (target 95%), review rate (target 20% or less) and every miss. `--dry-run` answers each case with its own labels to prove the harness. Rows with no `expected_outcome` are skipped as unlabelled.
+- Prompt version is now 2 (`page_text`, `item_kind`, one sentence that page text is data). Ariel approved the version 1 wording; the added sentence needs a look.
+- Tests: 233 passing, including the built bundle with a fake Anthropic API for the success path and the three failure runs.
+
+### How each M3 DoD item stands
+| DoD item | State |
+|---|---|
+| Golden set eval report committed, targets met or explained | Script and report built and tested with a dry run. Needs the API key and 30 to 50 labelled rows. |
+| Invalid output path | Demonstrated by tests (unit and built bundle). Live demonstration needs the key. |
+| Low confidence path | Same. Includes the page re-read. |
+| API failure path | Demonstrated by the built bundle test: unlabelled twice, Review Queue `Classifier unavailable` on the third run. |
+| Approve and Reject sync | Demonstrated by tests on the built bundle. Live check: set Decision on a DEV Review Queue row and wait 5 minutes. |
+
+## M6: Heartbeat and errors  (status: code complete 2026-10-25; live DoD check pending)
+
+DoD: disabling the ingest trigger produces an ops email within 1 h (internal) and from the external ping service; a forced exception is logged and emailed once.
+
+### Built
+- `heartbeatCheck` (hourly): if no successful run for more than 45 minutes, emails `OPS_RECIPIENTS` once, again every 6 hours, and sends one recovery email. Before the first success the clock starts at the first check. If mail cannot be sent the alert is retried next hour.
+- Every successful `runIngest` sends a plain GET to `HEARTBEAT_PING_URL` (no data). A failed ping never fails the run. If `runIngest` throws, `<url>/fail` is pinged.
+- `guarded()` wraps every trigger function: an uncaught error writes a `FAILED` Run Log row, emails `OPS_RECIPIENTS` the function name, error and stack at most once per function per hour, and is rethrown so Apps Script still shows the failed execution.
+- The ping URL lives only in the git-ignored `dev.properties.json`. The example file has a placeholder.
+- Tests: heartbeat decisions (alert, quiet, 6 hour repeat, recovery, never-ran), ping on success, ping failure ignored, no ping with a placeholder, a forced exception logged twice but emailed once, a second function emailing separately, and mail only to `OPS_RECIPIENTS`.
+
+### Live DoD check (needs Ariel)
+1. Run `seedDevProperties` again after the next push so `HEARTBEAT_PING_URL` is set.
+2. In healthchecks.io set the check's Period to 10 minutes and Grace Time to 60 minutes, and add your email as the notification.
+3. Wait for two or three runs; the check should show green.
+4. In Apps Script, Triggers, delete the `runIngest` trigger. Within about an hour you should get the internal email "Sedifly media monitoring has stopped", and within about 70 minutes the healthchecks.io email.
+5. Run `setup()` to put the trigger back. You should get the recovery email at the next hourly check.
+6. Forced error: temporarily rename a header in the Coverage tab and wait for a run. Expect a FAILED Run Log row and one email; restore the header or run `setup()`.
+
+## Consolidated spec changes
+See `SPEC_CHANGES.md` (32 items with section, current text, proposal, reason and status).
