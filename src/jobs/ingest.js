@@ -5,10 +5,12 @@ import { allocateCoverageIds } from '../gas/coverageIds.js';
 import { loadMonitoredEntities } from '../gas/entities.js';
 import { classifierConfigured, buildClassifier } from '../gas/classifier.js';
 import { appendRunLog, log } from '../gas/runLog.js';
+import { pingHeartbeat } from '../gas/ping.js';
 import { processBatch } from '../core/ingestRun.js';
 import { createIndex } from '../core/dedupe.js';
 
 /**
+ * Failures are logged, emailed and pinged by guarded() in jobs/guard.js.
  * Reads labelled Gmail messages, parses them, writes provisional Coverage rows, and relabels each message.
  * Safe to run again at any time: nothing is written twice.
  * @returns {object} run summary
@@ -21,11 +23,10 @@ export function runIngest() {
   }
   const startedAt = new Date();
   const t0 = Date.now();
-  let ss = null;
   try {
     assertConfig();
     const budgetMs = Number(getProp('RUN_TIME_BUDGET_MS'));
-    ss = SpreadsheetApp.openById(targetSpreadsheetId());
+    const ss = SpreadsheetApp.openById(targetSpreadsheetId());
     assertTabsReady(ss);
     const labelIds = labelIdsByName();
     const candidates = listCandidates(labelIds, Number(getProp('BATCH_MAX_MESSAGES')));
@@ -54,17 +55,12 @@ export function runIngest() {
       });
     }
     appendRunLog(ss, { runId: Utilities.getUuid(), fn: 'runIngest', startedAt, durationMs: Date.now() - t0, summary, status: summary.status });
-    if (summary.status === 'OK') setProp('LAST_SUCCESS_AT', new Date().toISOString());
+    if (summary.status === 'OK') {
+      setProp('LAST_SUCCESS_AT', new Date().toISOString());
+      pingHeartbeat('ok');
+    }
     log('runIngest done', { status: summary.status, seen: summary.messagesSeen, newRows: summary.newRows, toReview: summary.toReview, errors: summary.errors });
     return summary;
-  } catch (e) {
-    log('runIngest FAILED', { error: String(e && e.message || e) });
-    try {
-      if (ss) {
-        appendRunLog(ss, { runId: Utilities.getUuid(), fn: 'runIngest', startedAt, durationMs: Date.now() - t0, summary: { errors: 1, note: String(e && e.message || e) }, status: 'FAILED' });
-      }
-    } catch (ignored) { /* the original error matters more */ }
-    throw e;
   } finally {
     lock.releaseLock();
   }
