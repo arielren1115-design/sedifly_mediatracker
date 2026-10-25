@@ -6,3 +6,4 @@ export { dailyDigest } from './jobs/digest.js';
 export { runBackfill } from './jobs/backfill.js';
 export { compareBlindRun, mergeBlindRun } from './jobs/blind.js';
 export { heartbeatCheck } from './gas/heartbeat.js';
+export { callClaude } from './gas/claude.js';

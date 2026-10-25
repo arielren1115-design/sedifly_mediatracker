@@ -37,7 +37,7 @@ export function makeEnv(props) {
   const triggers = [];
   const mailbox = []; // {id, labelIds:Set, raw}
   const store = { ...props };
-  const state = { locked: false, tz: {}, dataFormat: 'bytes' }; // Gmail body data: 'bytes' (signed byte arrays, as Apps Script returns) or 'string'
+  const state = { locked: false, tz: {}, dataFormat: 'bytes', sleeps: [], fetches: [], fetchQueue: [] }; // Gmail body data: 'bytes' (signed byte arrays, as Apps Script returns) or 'string'
   const ssFor = (id) => {
     sheets[id] = sheets[id] || { Sheet1: fakeSheet('Sheet1') };
     const map = sheets[id];
@@ -62,6 +62,7 @@ export function makeEnv(props) {
       tryLock: () => { if (state.locked) return false; state.locked = true; return true; },
     }) },
     Utilities: {
+      sleep: (ms) => { state.sleeps.push(ms); },
       getUuid: () => `uuid-${Math.random().toString(16).slice(2)}`,
       // Strict like Apps Script: wrong alphabet or missing padding throws.
       base64Decode: (d) => {
@@ -95,6 +96,15 @@ export function makeEnv(props) {
         },
       },
     } },
+    UrlFetchApp: {
+      fetch: (url, options) => {
+        state.fetches.push({ url, options });
+        const next = state.fetchQueue.shift();
+        if (!next) throw new Error('no fake response queued');
+        if (next instanceof Error) throw next;
+        return { getResponseCode: () => next.status, getContentText: () => next.body };
+      },
+    },
     ScriptApp: {
       getProjectTriggers: () => [...triggers],
       deleteTrigger: (t) => { triggers.splice(triggers.indexOf(t), 1); },

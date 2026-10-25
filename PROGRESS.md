@@ -137,8 +137,37 @@ Columns: Index (MR-xxx), Active, Applies to category, Default priority, Route, T
 | MR-010 to MR-013 | Yes | Any | Low | Archive only |
 | MR-014 | Yes | General | Low | Archive only |
 
-Open questions for M3 and M5 (not guessed):
+Answers received 2026-10-25: follow the sheet's own names (priorities are Critical, High, Standard, Low); the sheet's Active column decides which rules are live; only MR-004 is inactive; there are only MR-001 to MR-014. The full text is saved as `fixtures/config/rules.csv`.
+
+Earlier open questions (now answered, kept for the record):
 1. **Priority vocabulary.** The sheet uses Critical, High, Standard, Low. Ben's reply said Critical, High and Routine. Which list is the real taxonomy?
 2. **Which rules are live.** Spec 2.1 lists MR-003, 005, 007 to 016 as live (MR-006 partly, MR-004 not built). The sheet has Yes for MR-002 (not in the spec list) and MR-006 (spec says partly), has no MR-015 or MR-016, and MR-001 is unseen. Proposal: the sheet's Active column is the source of truth and the spec list is updated to match.
 3. Column names differ from spec 6.4 (Index for Rule ID, Route for Action, Default priority for Priority). The loader will use the sheet's names.
 4. A CSV export of the full tab is still needed for the classifier prompt and routing tests (the screenshot truncates long text).
+
+## M3: Classification and Review Queue  (status: in progress, started 2026-10-25)
+
+DoD: golden set eval report committed with the 9.4 targets met or gaps explained; invalid output, low confidence and API failure paths each demonstrated; Approve and Reject sync works.
+
+### Built so far (all pure and tested, 173 tests passing; nothing is wired into the live job yet)
+- `core/rules.js`: loads the Monitoring Rules by header name, rejects ids that are not MR-nnn, duplicate ids and a bad Active value, and exposes the active rules.
+- `core/taxonomy.js`: categories (General, Event, Brand, Strategist), priorities (Critical, High, Standard, Low), sentiments, channels. The one line definitions are drawn from the two sheets and are **DRAFT until Ben confirms them**.
+- `core/validateClassification.js`: spec 9.3 validation against the allowed lists (entity names, active rule ids, taxonomy), with word limits applied to summary and reasoning.
+- `core/classifyPrompt.js`: versioned system prompt, tool schema, user payload and request builder. `core/channel.js`: channel from domain (spec 8.3).
+- `core/classifyOutcome.js`: the decision table (coverage, review, skip, refetch).
+- `core/claudeResponse.js` and `gas/claude.js`: the single place that calls the API, with the 2 s and 8 s retries. Tested against a fake UrlFetchApp.
+
+### Deviations from the spec (proposed spec changes)
+1. **No `temperature`.** Spec 9.2 says `temperature: 0`. From API version 2026-10-21 every model returns a 400 for it, and several current models already reject non-default values. Consistency has to come from the validator, the confidence threshold and the golden set instead.
+2. **Forced tool choice only for `claude-haiku-4-5`.** Several current models return a 400 for it. Other models use `tool_choice: auto`, a reminder in the prompt, a larger `max_tokens` and `effort: low`. A reply without the tool call goes to the Review Queue as invalid output. Not tested against the real API yet.
+3. The request uses `anthropic-version: 2023-06-01`, as in the spec. Moving to 2026-10-21 needs no change to this code, because no sampling parameter is sent.
+
+### Inputs still needed before the M3 DoD can be shown
+- An Anthropic API key (Joash, billing owner), set as `ANTHROPIC_API_KEY` in DEV.
+- The golden set: 30 to 50 hand labelled past items (entity, category, priority, sentiment, rules) in `fixtures/golden/golden.csv`.
+- Ben to confirm the taxonomy definitions, and whether the Coverage tab needs a `Source type` column (Media, Social Media, Non-Media Listings), which the owners treat as a second classification.
+- Ariel to review the system prompt wording (spec TODO).
+- A decision on which model to run. The spec default is `claude-haiku-4-5` (about 1 USD in and 5 USD out per million tokens). The newer `claude-haiku-5-5` is listed at about 0.10 USD in and 0.50 USD out. The golden set eval can compare both.
+
+### Still to build
+Wire classification into the ingest flow (after the entity gate, with the D12 page fetch and the three-failure counter), the Review Queue Approve and Reject sync, the eval script, and live demonstrations of the three failure paths.

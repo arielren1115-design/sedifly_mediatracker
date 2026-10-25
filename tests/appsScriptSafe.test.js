@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const root = new URL('../src/', import.meta.url).pathname;
 const files = (d) => readdirSync(d).flatMap((n) => (statSync(path.join(d, n)).isDirectory() ? files(path.join(d, n)) : [path.join(d, n)])).filter((f) => f.endsWith('.js'));
-const FORBIDDEN = [/\bnew URL\(/, /\bURLSearchParams\b/, /\bTextDecoder\b/, /\bTextEncoder\b/, /\bBuffer\b/, /\bprocess\./, /\brequire\(/, /from 'node:/, /\bsetTimeout\(/, /\bfetch\(/];
+const FORBIDDEN = [/\bnew URL\(/, /\bURLSearchParams\b/, /\bTextDecoder\b/, /\bTextEncoder\b/, /\bBuffer\b/, /\bprocess\./, /\brequire\(/, /from 'node:/, /\bsetTimeout\(/, /(?<![.\w])fetch\(/];
 
 test('src uses nothing that Apps Script lacks', () => {
   for (const f of files(root)) {
