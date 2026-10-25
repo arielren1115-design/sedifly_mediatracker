@@ -6,7 +6,8 @@ test('headers are unique and match the spec counts', () => {
   for (const [name, headers] of Object.entries(TABS)) {
     assert.equal(new Set(headers).size, headers.length, `${name} has duplicate headers`);
   }
-  assert.equal(COVERAGE_HEADERS.length, 27);
+  assert.equal(COVERAGE_HEADERS.length, 28);
+  assert.equal(COVERAGE_HEADERS[COVERAGE_HEADERS.indexOf('Source route') + 1], 'Syndicated copies');
   assert.equal(COVERAGE_HEADERS[COVERAGE_HEADERS.indexOf('Channel') + 1], 'Source type');
   assert.equal(RUN_LOG_HEADERS.length, 14);
   assert.deepEqual(REVIEW_QUEUE_HEADERS.slice(-4), ['Review reason', 'Decision', 'Reviewed by', 'Synced at']);

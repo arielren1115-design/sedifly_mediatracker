@@ -53,6 +53,22 @@ test('similar title ignores rows older than 7 days or with no usable date', () =
   assert.equal(blank.similarTitle('Why Venture Capital Is Hard', 'https://other.com/x', now), null);
 });
 
+test('short headlines are never similar, so generic titles cannot be lumped together', () => {
+  const idx = createIndex([row({ title: 'Joash Lee interview' })]);
+  assert.equal(idx.similarTitle('Joash Lee interview', 'https://other.com/x', now), null);
+  const five = createIndex([row({ title: 'one two three four five' })]);
+  assert.ok(five.similarTitle('One two three four five', 'https://other.com/x', now));
+});
+
+test('copy counts start at the stored value and can be raised', () => {
+  const idx = createIndex([row({ syndicatedCopies: 3 })]);
+  const e = idx.findByUrl('https://forbes.com/a/b');
+  assert.equal(e.syndicatedCopies, 3);
+  idx.setCopies(e, 4);
+  assert.equal(idx.findByUrl('https://forbes.com/a/b').syndicatedCopies, 4);
+  assert.equal(createIndex([row()]).findByUrl('https://forbes.com/a/b').syndicatedCopies, 0, 'a blank cell counts as zero');
+});
+
 test('rows without a title or url never match', () => {
   const idx = createIndex([row({ title: '', url: '' })]);
   assert.equal(idx.similarTitle('', 'https://x.com/a', now), null);

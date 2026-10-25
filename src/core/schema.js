@@ -5,7 +5,7 @@ export const COVERAGE_HEADERS = [
   'Coverage ID', 'Detected at', 'Published at', 'Entity', 'Channel', 'Source type', 'Outlet', 'Outlet tier',
   'Title', 'URL', 'Normalised URL', 'Excerpt', 'Category', 'Priority', 'Sentiment',
   'Rules matched', 'Instant alert sent', 'Archive status', 'Archive link', 'Found in',
-  'Verification', 'Source route', 'Gmail message ID', 'Classifier confidence', 'Logged by',
+  'Verification', 'Source route', 'Syndicated copies', 'Gmail message ID', 'Classifier confidence', 'Logged by',
   'Notes', 'Last updated',
 ];
 

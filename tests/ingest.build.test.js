@@ -144,3 +144,29 @@ test('a sheet with its header row removed fails with a plain message, touches no
   assert.equal(s.status, 'OK');
   assert.deepEqual(labelsOf(env, 'f1'), ['L_Monitoring/Processed']);
 });
+
+test('a syndicated copy raises the Syndicated copies cell on the existing row and adds no row', async () => {
+  const { env, sb, add } = await ready();
+  await add('a2', 'talkwalker_native', ['Monitoring/Automated']);
+  run(sb, 'runIngest()');
+  const headers = coverageRows(env)[0];
+  const col = (h) => headers.indexOf(h);
+  const forbes = () => coverageRows(env).find((r) => String(r[col('URL')]).includes('forbes.com'));
+  assert.equal(coverageRows(env).length - 1, 2);
+  assert.ok(!forbes()[col('Syndicated copies')], 'blank before any copy');
+
+  for (const [id, site] of [['a3', 'https://one.example.com/copy'], ['a4', 'https://two.example.com/copy']]) {
+    const raw = await emlToGmailApi(`${dir}talkwalker_native.eml`, id);
+    const html = raw.payload.parts.find((p) => p.mimeType === 'text/html');
+    const text = Buffer.from(html.body.data, 'base64url').toString('utf8')
+      .replaceAll('https://www.forbes.com/councils/forbesbusinesscouncil/2026/10/13/why-venture-capital-money-isnt-right-for-every-founder/', site);
+    html.body.data = Buffer.from(text, 'utf8').toString('base64url');
+    env.mailbox.push({ id, labelIds: new Set(['L_Monitoring/Automated']), raw });
+    const s = run(sb, 'runIngest()');
+    assert.equal(s.status, 'OK');
+  }
+  assert.equal(coverageRows(env).length - 1, 2, 'still two rows');
+  assert.equal(forbes()[col('Syndicated copies')], 2);
+  assert.equal(forbes()[col('Source route')], 'Talkwalker');
+  assert.ok(forbes()[col('Last updated')] instanceof Date || typeof forbes()[col('Last updated')] === 'object');
+});

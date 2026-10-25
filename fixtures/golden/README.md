@@ -13,3 +13,5 @@ One row per distinct item. Aim for 30 to 50 rows with a spread of cases, not cop
 
 Each row needs the text the tool would have seen (title and snippet), not just the link.
 `expected_outcome` is one of: coverage, review, skip.
+
+Also in this folder: `golden_candidates.csv` (19 rows: real alerts plus distinct Old tracker stories) and `golden_candidates_social.csv` (22 third party social posts from the Old tracker). For rows with route `Team forward`, put the forwarder's comment in `snippet` and leave `title` blank, because that is all a real forward carries.

@@ -33,7 +33,7 @@ async function world() {
     allocateIds: (n) => Array.from({ length: n }, () => `COV-${String(w.next++).padStart(6, '0')}`),
     appendCoverageRow: (row) => { w.coverage.push(row); return w.coverage.length + 1; },
     appendReviewRow: (row) => { w.reviewRows.push(row); return w.reviewRows.length + 1; },
-    updateExisting: (entry, values) => { w.updates.push({ id: entry.coverageId, values }); },
+    updateExisting: (entry, values) => { w.updates.push({ id: entry.coverageId, sheet: entry.sheet, values }); },
     markProcessed: (id) => { if (w.failMarkOnce === id) { w.failMarkOnce = null; throw new Error('gmail down'); } w.processed.push(id); },
     markReview: (id, label, reason) => { w.reviewed.push([id, reason]); },
     shouldStop: () => false,
@@ -129,7 +129,7 @@ test('the same article from another source adds the route to the existing row an
   assert.equal(w.coverage.length, 2, 'forbes and campus.sg only');
   assert.equal(s.newRows, 0);
   assert.equal(s.duplicates, 1);
-  assert.deepEqual(w.updates, [{ id: 'COV-000001', values: { 'Source route': 'Talkwalker, Team forward', 'Found in': 'Tool', 'Last updated': new Date('2026-10-18T10:00:00.000Z') } }]);
+  assert.deepEqual(w.updates, [{ id: 'COV-000001', sheet: 'Coverage', values: { 'Source route': 'Talkwalker, Team forward', 'Found in': 'Tool', 'Last updated': new Date('2026-10-18T10:00:00.000Z') } }]);
   assert.ok(w.processed.includes('fw2'));
 });
 
@@ -153,32 +153,75 @@ test('a duplicate inside the same batch merges into the row created a moment ear
   assert.equal(w.updates[0].values['Source route'], 'Talkwalker, Team forward');
 });
 
-test('same title from a different url within 7 days goes to the Review Queue as a possible duplicate', async () => {
+const copyOf = (w, id, from, to, label = 'Monitoring/Automated', base = 'tw') => {
+  w.messages[id] = { ...w.messages[base], id, htmlBody: w.messages[base].htmlBody.replaceAll(from, to) };
+  w.labels[id] = label;
+};
+
+test('a syndicated copy (same headline, different url, within 7 days) adds no row and is counted on the existing row', async () => {
   const w = await world();
   processBatch(w.deps(only(w, 'tw')));
-  w.messages.tw2 = { ...w.messages.tw, id: 'tw2', htmlBody: w.messages.tw.htmlBody.replace(FORBES, 'https://syndicated.example.com/copy') };
-  w.labels.tw2 = 'Monitoring/Automated';
+  copyOf(w, 'tw2', FORBES, 'https://syndicated.example.com/copy');
   const s = processBatch(w.deps(only(w, 'tw2')));
-  assert.equal(w.reviewRows.length, 1);
-  assert.equal(w.reviewRows[0]['Review reason'], 'Possible duplicate');
-  assert.equal(w.reviewRows[0]['Coverage ID'], undefined, 'no Coverage ID until a human approves');
-  assert.equal(w.reviewRows[0].URL, 'https://syndicated.example.com/copy');
   assert.equal(w.coverage.length, 2, 'no new Coverage row');
-  assert.equal(s.toReview, 1);
-  assert.equal(s.duplicates, 1, 'the campus.sg item is a plain duplicate');
+  assert.equal(w.reviewRows.length, 0, 'and nothing is sent to the Review Queue');
+  assert.equal(s.newRows, 0);
+  assert.equal(s.toReview, 0);
+  assert.equal(s.duplicates, 2, 'the syndicated copy and the repeated campus.sg link');
+  const u = w.updates.find((x) => x.values['Syndicated copies'] !== undefined);
+  assert.equal(u.id, 'COV-000001');
+  assert.equal(u.values['Syndicated copies'], 1);
+  assert.ok(u.values['Last updated'] instanceof Date);
+  assert.deepEqual(s.details[0].syndicated, [{ url: 'https://syndicated.example.com/copy', of: 'COV-000001' }]);
   assert.ok(w.processed.includes('tw2'));
 });
 
-test('a later item with the same url as a review row merges into that review row', async () => {
+test('every further copy raises the count, so hundreds of copies stay one row', async () => {
   const w = await world();
   processBatch(w.deps(only(w, 'tw')));
-  w.messages.tw2 = { ...w.messages.tw, id: 'tw2', htmlBody: w.messages.tw.htmlBody.replace(FORBES, 'https://syndicated.example.com/copy') };
-  w.labels.tw2 = 'Monitoring/Automated';
-  processBatch(w.deps(only(w, 'tw2')));
-  w.add('fw2', 'Monitoring/Team Forward', { plainBody: 'https://syndicated.example.com/copy' });
+  for (let i = 1; i <= 5; i++) {
+    copyOf(w, `c${i}`, FORBES, `https://site${i}.example.com/copy`);
+    processBatch(w.deps(only(w, `c${i}`)));
+  }
+  assert.equal(w.coverage.length, 2);
+  assert.equal(w.reviewRows.length, 0);
+  const counts = w.updates.filter((x) => x.values['Syndicated copies'] !== undefined).map((x) => x.values['Syndicated copies']);
+  assert.deepEqual(counts, [1, 2, 3, 4, 5]);
+});
+
+test('a copy of an item waiting in the Review Queue is counted on that review row', async () => {
+  const w = await world();
+  processBatch(w.deps(only(w, 'ga')));
+  assert.equal(w.reviewRows.length, 1);
+  copyOf(w, 'ga2', 'media.unisba.ac.id', 'copy.example.org', 'Monitoring/Automated', 'ga');
+  processBatch(w.deps(only(w, 'ga2')));
+  assert.equal(w.reviewRows.length, 1, 'still one review row');
+  const u = w.updates.find((x) => x.values['Syndicated copies'] !== undefined);
+  assert.equal(u.sheet, 'Review Queue');
+  assert.equal(u.values['Syndicated copies'], 1);
+});
+
+test('the same url arriving from another route merges into a review row too', async () => {
+  const w = await world();
+  processBatch(w.deps(only(w, 'ga')));
+  w.add('fw2', 'Monitoring/Team Forward', { plainBody: 'https://media.unisba.ac.id/e7cc6231/04877eceNy8XOVQbNB1bNCs' });
   processBatch(w.deps(only(w, 'fw2')));
   assert.equal(w.reviewRows.length, 1);
-  assert.equal(w.updates.length, 1);
+  const u = w.updates.find((x) => x.values['Source route'] !== undefined);
+  assert.equal(u.sheet, 'Review Queue');
+  assert.equal(u.values['Source route'], 'Google Alerts, Team forward');
+});
+
+test('short headlines are never treated as copies of each other', async () => {
+  const w = await world();
+  const TITLE = 'Why Venture Capital Money Isn&#39;t Right For Every Founder';
+  copyOf(w, 'a1', TITLE, 'Founder funding');
+  processBatch(w.deps(only(w, 'a1')));
+  copyOf(w, 'a2', TITLE, 'Founder funding');
+  w.messages.a2.htmlBody = w.messages.a2.htmlBody.replaceAll(FORBES, 'https://other.example.com/copy');
+  processBatch(w.deps(only(w, 'a2')));
+  assert.equal(w.coverage.length, 3, 'forbes, campus.sg, and the second short-titled item as its own row');
+  assert.equal(w.updates.filter((x) => x.values['Syndicated copies'] !== undefined).length, 0);
 });
 
 test('items without a url are never merged', async () => {

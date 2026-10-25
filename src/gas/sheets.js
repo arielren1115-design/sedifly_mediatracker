@@ -92,7 +92,7 @@ export function appendObjects(sheet, objects) {
 }
 
 /** Header names the script may rewrite on an existing row. Everything else is human owned or permanent (spec 6.1). */
-const UPDATABLE = ['Source route', 'Found in', 'Last updated'];
+const UPDATABLE = ['Source route', 'Found in', 'Syndicated copies', 'Last updated'];
 
 /** Writes values into named cells of one existing row. Refuses any header that is not on the allowed list. */
 export function updateCells(sheet, rowNumber, values) {
@@ -124,6 +124,7 @@ export function readIndexRows(ss) {
       detectedAt: col(row, 'Detected at'),
       sourceRoute: String(col(row, 'Source route')),
       foundIn: String(col(row, 'Found in')),
+      syndicatedCopies: col(row, 'Syndicated copies'),
       gmailMessageId: col(row, 'Gmail message ID'),
     }));
   }

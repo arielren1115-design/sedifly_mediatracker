@@ -48,7 +48,7 @@ export function processBatch(deps) {
         continue;
       }
       s.itemsParsed += items.length;
-      const counts = { newRows: 0, duplicates: 0, reviewRows: 0, skipped: [], entities: new Set() };
+      const counts = { newRows: 0, duplicates: 0, reviewRows: 0, skipped: [], syndicated: [], entities: new Set() };
       for (const item of items) handleItem(deps, item, counts);
       s.newRows += counts.newRows;
       s.duplicates += counts.duplicates;
@@ -57,6 +57,8 @@ export function processBatch(deps) {
       deps.markProcessed(id, sourceLabel);
       const detail = { id, outcome: 'processed', items: items.length, newRows: counts.newRows, duplicates: counts.duplicates, reviewRows: counts.reviewRows, entities: [...counts.entities] };
       if (counts.skipped.length) detail.skipped = counts.skipped;
+      if (counts.syndicated.length) detail.syndicated = counts.syndicated.slice(0, 5);
+      if (counts.syndicated.length > 5) detail.syndicatedTotal = counts.syndicated.length;
       s.details.push(detail);
     } catch (e) {
       s.errors++;
@@ -68,7 +70,7 @@ export function processBatch(deps) {
   return s;
 }
 
-/** Spec 8.2: skip repeats, merge the same url, send same title from a different url to review, else add a row. */
+/** Spec 8.2: skip repeats, merge the same url, count a syndicated copy against the existing row, else add a row. */
 function handleItem(deps, item, counts) {
   const index = deps.index;
   const key = itemKey(item);
@@ -97,8 +99,17 @@ function handleItem(deps, item, counts) {
     counts.reviewRows++;
   };
 
+  // Spec 8.2, owner decision A (2026-10-25): the same headline on another site is a syndicated copy. It adds no row, it is counted.
   const similar = norm && item.title ? index.similarTitle(item.title, norm, now.getTime()) : null;
-  if (similar) { addReview('Possible duplicate'); return; }
+  if (similar) {
+    const copies = similar.syndicatedCopies + 1;
+    deps.updateExisting(similar, { 'Syndicated copies': copies, 'Last updated': now });
+    index.setCopies(similar, copies);
+    index.addKey(key);
+    counts.duplicates++;
+    counts.syndicated.push({ url: item.url, of: similar.coverageId });
+    return;
+  }
 
   const gate = entityGate(deps, item);
   gate.ids.forEach((e) => counts.entities.add(e));

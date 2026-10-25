@@ -2,6 +2,8 @@
 import { normalizeUrl } from './normalizeUrl.js';
 
 const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
+/** Shorter headlines ("Home", "News") are too generic to treat as the same story. */
+const MIN_TITLE_WORDS = 5;
 
 /** Lower case, punctuation removed, spaces collapsed. @param {string|null} title @returns {string} */
 export function normalizeTitle(title) {
@@ -37,7 +39,7 @@ export function createIndex(rows) {
   const index = {
     /** @returns {object} the stored entry, with `norm` and `titleNorm` filled in */
     add(row) {
-      const entry = { ...row, norm: row.normalisedUrl || normalizeUrl(row.url) || '', titleNorm: normalizeTitle(row.title) };
+      const entry = { ...row, norm: row.normalisedUrl || normalizeUrl(row.url) || '', titleNorm: normalizeTitle(row.title), syndicatedCopies: Number(row.syndicatedCopies) || 0 };
       entries.push(entry);
       if (row.gmailMessageId && row.url) keys.add(`${row.gmailMessageId}||${row.url}`);
       if (entry.norm && !byUrl.has(entry.norm)) byUrl.set(entry.norm, entry);
@@ -46,11 +48,14 @@ export function createIndex(rows) {
     hasKey: (key) => keys.has(key),
     addKey: (key) => { keys.add(key); },
     findByUrl: (norm) => byUrl.get(norm) || null,
-    /** A row with the same title, a different url, and a Detected at within 7 days of now. */
+    /** A row with the same headline (at least 5 words), a different url, and a Detected at within 7 days of now. */
     similarTitle(title, norm, nowMs) {
       const t = normalizeTitle(title);
-      if (!t) return null;
+      if (t.split(' ').length < MIN_TITLE_WORDS) return null;
       return entries.find((e) => e.titleNorm === t && e.norm !== norm && Math.abs(nowMs - timeOf(e.detectedAt)) <= SEVEN_DAYS_MS) || null;
+    },
+    setCopies(entry, count) {
+      entry.syndicatedCopies = count;
     },
     setRoutes(entry, sourceRoute, foundIn) {
       entry.sourceRoute = sourceRoute;
