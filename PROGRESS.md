@@ -85,6 +85,8 @@ DoD: (1) URL normalisation table test with at least 25 cases passes. (2) The sam
 - DoD 2: dedupe by normalised URL. A repeat appends the route to `Source route`, adds `Tool` to `Found in`, and refreshes `Last updated`. No other cell is touched, and the script refuses to write any other column. Same title from a different URL within 7 days goes to the Review Queue as `Possible duplicate` with no Coverage ID. Items with no URL are never merged. Works within one batch and across runs. Tested locally and against the built bundle.
 - `Normalised URL` is now written on every new row. Existing rows with a blank value are normalised on the fly from their URL.
 - Real config files saved as `fixtures/config/entities.csv` and `fixtures/config/rules.csv`.
+- Entity matching engine (`src/core/csv.js`, `src/core/entities.js`), tested against the real entities file. It is **not wired into the live job yet**, so DEV behaviour is unchanged. Defaults, all switchable and pending owner confirmation: a quoted phrase is exact, loose words must all appear, every part of the primary term must be present, aliases are alternative exact phrases, whole words only, case insensitive, `Recent watch` entities stay monitored (option `honourEndDates` turns expiry on).
+- Check on the three real alert items: Forbes matches Sedifly and Joash Lee, campus.sg matches Sedifly, and the Unisba video credit matches Joash Lee (very likely a different person, which is open question 2 below).
 
 ### Spec notes
 - Reddit comment canonical form (`/comments/<id>/<commentId>`) looks the same as a post with a slug, so a Reddit comment cannot be normalised twice. Always normalise the original URL, never a stored one.
@@ -98,5 +100,7 @@ DoD: (1) URL normalisation table test with at least 25 cases passes. (2) The sam
 4. Alert emails only carry a short snippet, which may lack the second word even when the web page has it. Proposal: also treat the alert's own name (Google subject, Talkwalker alert name, F5Bot keyword) as an entity hint, so valid results are not skipped.
 5. Events marked `Recent watch` have review dates that are already past (30 Sep 2026, 15 Sep 2026). Still monitor them, or treat them as inactive?
 6. Entity type mapping: Brand, Founder, Strategist, Partner, Event versus the spec's Company and Person.
+
+Still needed to finish DoD 3 and wire the engine in: the answers above, plus the Monitored Entities tab pasted into the DEV PR Tracker sheet (the engine reads the live tab, title row included).
 
 **Monitoring Rules** has `Index` 1 to 14, `Route` (Instant alert, Digest, Archive only), Trigger, Examples, Required system action, Human action, Target timing and Notes. There are no `MR-xxx` IDs and no Active column, so the spec's live rule list (MR-003, MR-005, ...) cannot be mapped to these rows without guessing. Not needed for M2, but needed before M3 (prompt) and M5 (routing). Needed from Ben: the MR-xxx IDs for each row, which rows are live in v1, and the taxonomy (Category and Priority values).
