@@ -15,6 +15,12 @@ export function parseTalkwalkerDate(text) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+/** The alert's own name, from "[Talkwalker Alerts] Alert for Sedifly". */
+export function alertNameOf(subject) {
+  const m = /Alert for\s+(.+?)\s*$/i.exec(subject || '');
+  return m ? m[1] : null;
+}
+
 /**
  * @param {{id:string, date:string, htmlBody?:string}} message
  * @returns {object[]} RawItem[]
@@ -44,6 +50,7 @@ export function parse(message) {
       receivedAt: message.date,
       forwarderEmail: null,
       forwarderNote: null,
+      alertName: alertNameOf(message.subject),
       channelHint: null,
       attachments: [],
     };

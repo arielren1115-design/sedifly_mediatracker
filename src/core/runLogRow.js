@@ -16,7 +16,7 @@ export function buildRunLogRow({ runId, fn, startedAt, durationMs, summary, stat
     'New rows': summary.newRows || 0,
     Duplicates: summary.duplicates || 0,
     'To review': summary.toReview || 0,
-    'Skipped (no entity)': 0,
+    'Skipped (no entity)': summary.skippedNoEntity || 0,
     'Capture failures': 0,
     Errors: summary.errors || 0,
     'Status (OK / PARTIAL / FAILED)': status,

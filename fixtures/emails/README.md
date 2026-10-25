@@ -10,3 +10,4 @@ Each `.eml` has a matching `.expected.json` (the RawItem list the parser must re
 | team_forward_non_team_sender | Real, redacted. A link sent from a personal Gmail. No expected JSON: ingest rejects it before parsing. |
 | talkwalker_native, google_alert_joash_lee | Real, redacted native alerts. Routing headers and tracking tokens removed. |
 | team_forward_no_url_no_image | **Synthetic.** Copy of link_only with the link removed. |
+| f5bot_tips_not_an_alert | Real, redacted. F5Bot's "Your F5Bot keywords haven't found anything yet" tips email, from `hello@a.f5bot.com`. **Not an alert.** Kept as the negative case for the future F5Bot parser (it must produce no items). |

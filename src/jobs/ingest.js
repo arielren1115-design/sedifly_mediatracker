@@ -2,6 +2,7 @@ import { assertConfig, getProp, setProp, targetSpreadsheetId } from '../gas/conf
 import { labelIdsByName, listCandidates, getMessage, markProcessed, markReview } from '../gas/gmail.js';
 import { appendObjects, readIndexRows, updateCells } from '../gas/sheets.js';
 import { allocateCoverageIds } from '../gas/coverageIds.js';
+import { loadMonitoredEntities } from '../gas/entities.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { processBatch } from '../core/ingestRun.js';
 import { createIndex } from '../core/dedupe.js';
@@ -33,6 +34,7 @@ export function runIngest() {
       summary = processBatch({
         candidates,
         getMessage,
+        entities: loadMonitoredEntities(),
         index: createIndex(readIndexRows(ss)),
         allocateIds: allocateCoverageIds,
         appendCoverageRow: (row) => appendObjects(coverage, [row]),

@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import { emlToMessage } from './helpers/emlToMessage.js';
 import { processBatch } from '../src/core/ingestRun.js';
 import { createIndex } from '../src/core/dedupe.js';
+import { parseCsv } from '../src/core/csv.js';
+import { loadEntities } from '../src/core/entities.js';
+import { readFileSync } from 'node:fs';
+
+const entities = loadEntities(parseCsv(readFileSync(new URL('../fixtures/config/entities.csv', import.meta.url), 'utf8')));
 
 const dir = new URL('../fixtures/emails/', import.meta.url).pathname;
 const FIX = {
@@ -24,6 +29,7 @@ async function world() {
     candidates: Object.keys(messages).filter((id) => !w.processed.includes(id) && !w.reviewed.some((r) => r[0] === id)).map((id) => ({ id, sourceLabel: labels[id] })),
     getMessage: (id) => messages[id],
     index: w.index,
+    entities,
     allocateIds: (n) => Array.from({ length: n }, () => `COV-${String(w.next++).padStart(6, '0')}`),
     appendCoverageRow: (row) => { w.coverage.push(row); return w.coverage.length + 1; },
     appendReviewRow: (row) => { w.reviewRows.push(row); return w.reviewRows.length + 1; },
@@ -46,14 +52,15 @@ test('every message ends as rows, a review label, never dropped', async () => {
   const s = processBatch(w.deps());
   assert.equal(s.messagesSeen, 7);
   assert.equal(s.itemsParsed, 3 + 1 + 1 + 2);
-  assert.equal(s.newRows, 7);
-  assert.equal(s.toReview, 3);
+  assert.equal(s.newRows, 6, 'the Unisba video credit is ambiguous, so it is not logged');
+  assert.equal(s.toReview, 4, '3 messages labelled Review plus 1 Review Queue row');
   assert.equal(s.errors, 0);
   assert.equal(s.status, 'OK');
   assert.deepEqual(w.processed.sort(), ['fwd', 'ga', 'shot', 'tw']);
   assert.deepEqual(w.reviewed.map((r) => r[0]).sort(), ['empty', 'outsider', 'unknown']);
-  assert.equal(w.coverage.length, 7);
-  assert.equal(new Set(w.coverage.map((r) => r['Coverage ID'])).size, 7);
+  assert.equal(w.coverage.length, 6);
+  assert.equal(w.reviewRows.length, 1);
+  assert.equal(new Set(w.coverage.map((r) => r['Coverage ID'])).size, 6);
   assert.equal(s.details.length, 7);
   const outsider = s.details.find((d) => d.id === 'outsider');
   assert.match(outsider.from, /outsider@example\.com/);
@@ -65,7 +72,7 @@ test('a second run over the same state does nothing', async () => {
   processBatch(w.deps());
   const again = processBatch(w.deps());
   assert.equal(again.messagesSeen, 0);
-  assert.equal(w.coverage.length, 7);
+  assert.equal(w.coverage.length, 6);
 });
 
 test('crash after writing rows but before labelling: retry makes no duplicates', async () => {
@@ -180,4 +187,81 @@ test('items without a url are never merged', async () => {
   processBatch(w.deps(only(w, 'shot', 'shot2')));
   assert.equal(w.coverage.length, 2);
   assert.equal(w.coverage[0]['Normalised URL'], '');
+});
+
+const tweak = (w, id, subject, from, to) => {
+  const base = w.messages.tw;
+  w.messages[id] = { ...base, id, subject, htmlBody: base.htmlBody.replaceAll(from, to) };
+  w.labels[id] = 'Monitoring/Automated';
+};
+
+test('an alert result that matches no monitored entity is skipped and recorded, never silently dropped', async () => {
+  const w = await world();
+  tweak(w, 'tw3', '[Talkwalker Alerts] Alert for Acme', 'Sedifly', 'Acme');
+  w.messages.tw3.htmlBody = w.messages.tw3.htmlBody.replaceAll('Joash Lee', 'Someone Else');
+  const s = processBatch(w.deps(only(w, 'tw3')));
+  assert.equal(w.coverage.length, 0);
+  assert.equal(w.reviewRows.length, 0);
+  assert.equal(s.skippedNoEntity, 2);
+  assert.equal(s.newRows, 0);
+  assert.ok(w.processed.includes('tw3'), 'the message is done, with the reason in the Run Log');
+  const d = s.details[0];
+  assert.equal(d.skipped.length, 2);
+  assert.match(d.skipped[0].url, /^https:\/\//);
+  assert.match(d.skipped[0].reason, /no monitored entity/i);
+});
+
+test('a team forward with no entity match is logged anyway, because forwards are never skipped', async () => {
+  const w = await world();
+  w.add('fw2', 'Monitoring/Team Forward', { plainBody: 'https://example.com/unrelated-story' });
+  const s = processBatch(w.deps(only(w, 'fw2')));
+  assert.equal(w.coverage.length, 1);
+  assert.equal(s.skippedNoEntity, 0);
+});
+
+test('an ambiguous name goes to the Review Queue with the candidate filled in', async () => {
+  const w = await world();
+  const s = processBatch(w.deps(only(w, 'ga')));
+  assert.equal(w.coverage.length, 0);
+  assert.equal(w.reviewRows.length, 1);
+  const row = w.reviewRows[0];
+  assert.equal(row['Review reason'], 'Ambiguous entity match');
+  assert.equal(row.Entity, 'Joash Lee');
+  assert.equal(row['Coverage ID'], undefined);
+  assert.equal(row['Normalised URL'], 'https://media.unisba.ac.id/e7cc6231/04877eceNy8XOVQbNB1bNCs');
+  assert.equal(s.toReview, 1);
+  assert.ok(w.processed.includes('ga'));
+});
+
+test('an ambiguous name in a team forward also goes to review', async () => {
+  const w = await world();
+  w.add('fw2', 'Monitoring/Team Forward', { plainBody: 'Check this out\nhttps://example.com/x', subject: 's' });
+  w.messages.fw2.plainBody = 'Shaun Chew is mentioned here https://example.com/x';
+  processBatch(w.deps(only(w, 'fw2')));
+  assert.equal(w.reviewRows.length, 1);
+  assert.equal(w.reviewRows[0].Entity, 'Shaun Chew');
+});
+
+test('the alert name rescues a result whose snippet lacks the name: review, not skip', async () => {
+  const w = await world();
+  tweak(w, 'tw4', '[Talkwalker Alerts] Alert for Sedifly', 'Sedifly', 'Acme');
+  w.messages.tw4.htmlBody = w.messages.tw4.htmlBody.replaceAll('Joash Lee', 'Someone Else');
+  const s = processBatch(w.deps(only(w, 'tw4')));
+  assert.equal(s.skippedNoEntity, 0);
+  assert.equal(w.reviewRows.length, 2);
+  assert.equal(w.reviewRows[0]['Review reason'], 'Ambiguous entity match');
+  assert.equal(w.reviewRows[0].Entity, 'Sedifly');
+});
+
+test('several ambiguous candidates leave the Entity for the reviewer to choose', async () => {
+  const w = await world();
+  w.add('fw2', 'Monitoring/Team Forward', { plainBody: 'Shaun Chew and Wesley Tan https://example.com/two-people' });
+  processBatch(w.deps(only(w, 'fw2')));
+  assert.equal(w.reviewRows.length, 1);
+  assert.equal(w.reviewRows[0].Entity, undefined);
+});
+
+test('processing is refused if no monitored entities were loaded', async () => {
+  const w = await world();
+  assert.throws(() => processBatch(w.deps({ entities: [] })), /monitored entities/i);
 });

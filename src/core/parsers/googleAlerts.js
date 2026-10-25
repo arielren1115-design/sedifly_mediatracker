@@ -5,6 +5,12 @@ import { unwrapRedirect } from '../unwrapRedirect.js';
 const ITEM_SPLIT_RE = /itemscope[^>]*itemtype\s*=\s*["']https?:\/\/schema\.org\/(?!Organization)\w+["']/i;
 const NAME_RE = /<span[^>]*itemprop\s*=\s*["']name["'][^>]*>([\s\S]*?)<\/span>/i;
 
+/** The alert's own name, from "Google Alert - Joash Lee". */
+export function alertNameOf(subject) {
+  const m = /^\s*(?:Fwd:\s*)?Google Alert\s*-\s*(.+?)\s*$/i.exec(subject || '');
+  return m ? m[1] : null;
+}
+
 /**
  * @param {{id:string, date:string, htmlBody?:string}} message
  * @returns {object[]} RawItem[]
@@ -31,6 +37,7 @@ export function parse(message) {
       receivedAt: message.date,
       forwarderEmail: null,
       forwarderNote: null,
+      alertName: alertNameOf(message.subject),
       channelHint: null,
       attachments: [],
     });

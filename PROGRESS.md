@@ -92,7 +92,24 @@ DoD: (1) URL normalisation table test with at least 25 cases passes. (2) The sam
 - Reddit comment canonical form (`/comments/<id>/<commentId>`) looks the same as a post with a slug, so a Reddit comment cannot be normalised twice. Always normalise the original URL, never a stored one.
 - `To review` in the Run Log counts messages sent to `Monitoring/Review` and items sent to the Review Queue.
 
-### Blocked: the two config files do not match spec 6.4 (need owner decisions)
+### Owner decisions received (Ben, via Ariel, 2026-10-25) and how they were applied
+- Taxonomy stays as it is. Coverage categories: General, Event, Brand, Strategist. Source types: Media, Social Media, Non-Media Listings. Priorities: Critical, High, Routine, kept separate from the routing decision. Ariel's proposed Press mention / Leadership / Partnership lists and High / Medium / Low priorities were rejected.
+- Joash needs identity verification but not necessarily an explicit Sedifly mention. Strategists must be findable without Sedifly. Ambiguous matches go to review. Expired event watches were made inactive in the sheet (no longer `Recent watch`). MR-004 stays inactive for v1.
+- Rules now have MR- IDs, an Active column, Applies to category and Default priority in the master sheet (new layout: Index, Active, Applies to category, Default priority, Route, Trigger, Examples, Required system action, Human action, Target timing, Notes / guardrails). The Drive connector only shows each tab's first rows, so the full rules still need a CSV export before M3.
+- Applied: matches are now **strong** or **ambiguous**. Brands, partners and events: any hit is strong. People (founder, strategists): an alias hit, a primary term with an anchor word, or a bare name with Sedifly mentioned elsewhere is strong; a bare name alone is ambiguous. Only ambiguous matches go to the Review Queue (reason `Ambiguous entity match`, with the candidate in Entity when there is exactly one). No match from an alert is skipped and listed in the Run Log (`Skipped (no entity)`); no match from a team forward is logged anyway. The alert's own name ("Google Alert - Joash Lee") counts as an ambiguous hint.
+- The job now reads the Monitored Entities tab of the PR Activity Tracker (read only) every run that has messages to process. DEV points at Ben's master sheet.
+
+### Spec changes proposed
+- 6.2 Review reason: add `Ambiguous entity match`.
+- RawItem: add `alertName` and `channelHint`.
+- 9.1: replace Match terms and Anchor terms with the Primary search term and Aliases columns the sheet actually has, and add the strong and ambiguous rule above.
+- 6.1: the owners keep a second classification, Source type (Media, Social Media, Non-Media Listings), which the Coverage tab has no column for. Decision needed: add a column, or derive it from Channel.
+
+### Still open before M2 is closed
+- Live DEV test of the entity gate (steps given to Ariel).
+- Original blocked notes kept below for the record.
+
+### Earlier notes on the config files (resolved above unless marked)
 **Monitored Entities** columns are: Entity ID, Entity name, Entity type (Brand, Founder, Strategist, Partner, Event), Primary search term, Aliases / variants, Default category, Monitoring status (Active, Recent watch), Alert sensitivity (Critical, High, Standard), Start date, Review / end date, Notes. The spec expected Name, Type, Match terms, Anchor terms, Active, Notes. Row 1 is a title, so headers are on row 2.
 1. How should matching work? Proposal: read Primary search term like a search query (quoted text is an exact phrase, loose words must all appear, everything must be present); each alias is an alternative exact phrase.
 2. "Joash Lee" alone is the primary term, but the first real Google Alert for that name was a different person (a video crew credit). Should the bare name match, or only with Sedifly, founder or CEO nearby (the aliases)?

@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { makeEnv, goodProps, load } from './helpers/fakeGas.js';
 import { emlToGmailApi } from './helpers/emlToGmailApi.js';
+import { readFileSync } from 'node:fs';
+import { parseCsv } from '../src/core/csv.js';
+import { fakeSheet } from './helpers/fakeGas.js';
 
 const dir = new URL('../fixtures/emails/', import.meta.url).pathname;
 const run = (sb, code) => vm.runInContext(code, sb);
@@ -13,6 +16,10 @@ async function ready(dataFormat = 'bytes') {
   env.state.dataFormat = dataFormat;
   const sb = await load(env);
   run(sb, 'setup()');
+  // the read only PR Activity Tracker, with the real Monitored Entities tab (title row included)
+  const prTracker = fakeSheet('Monitored Entities');
+  parseCsv(readFileSync(new URL('../fixtures/config/entities.csv', import.meta.url), 'utf8')).forEach((r) => prTracker.rows.push(r));
+  env.sheets.x['Monitored Entities'] = prTracker;
   const id = (name) => `L_Monitoring/${name}`;
   const add = async (msgId, file, labelNames) => {
     env.mailbox.push({ id: msgId, labelIds: new Set(labelNames.map((n) => (n.startsWith('Monitoring/') ? `L_${n}` : n))), raw: await emlToGmailApi(`${dir}${file}.eml`, msgId) });
@@ -36,20 +43,26 @@ for (const format of ['bytes', 'string']) test(`blocker 2 with ${format} body da
 
   const first = run(sb, 'runIngest()');
   assert.equal(first.status, 'OK');
-  assert.equal(coverageRows(env).length - 1, 7, '8 items, one repeated link merged');
+  assert.equal(coverageRows(env).length - 1, 6, '8 items: one repeated link merged, one ambiguous name sent to review');
+  const reviewRows = env.sheets.x['Review Queue'].rows;
+  assert.equal(reviewRows.length - 1, 1);
+  const rq = (h) => reviewRows[1][reviewRows[0].indexOf(h)];
+  assert.equal(rq('Review reason'), 'Ambiguous entity match');
+  assert.equal(rq('Entity'), 'Joash Lee');
+  assert.equal(rq('Coverage ID'), '');
   assert.deepEqual(labelsOf(env, 'f1'), ['INBOX', 'L_Monitoring/Processed']);
   assert.deepEqual(labelsOf(env, 'a1'), ['L_Monitoring/Processed']);
   assert.deepEqual(labelsOf(env, 'bad'), ['L_Monitoring/Review']);
   assert.deepEqual(labelsOf(env, 'out'), ['L_Monitoring/Review']);
   assert.deepEqual(labelsOf(env, 'other'), ['INBOX'], 'unrelated mail is untouched');
-  assert.equal(env.store.NEXT_COVERAGE_ID, String(1 + 7));
+  assert.equal(env.store.NEXT_COVERAGE_ID, String(1 + 6));
   assert.ok(env.store.LAST_SUCCESS_AT);
 
   const headers = coverageRows(env)[0];
   const col = (h) => headers.indexOf(h);
   const urls = coverageRows(env).slice(1).map((r) => r[col('URL')]).sort();
   assert.deepEqual(urls, [
-    '', 'https://media.unisba.ac.id/e7cc6231/04877eceNy8XOVQbNB1bNCs', 'https://sequoiacap.com/article/services-the-new-software', 'https://www.campus.sg/us-vs-uk-universities-what-singapore-students-should-consider-before-choosing-campus-sg/',
+    '', 'https://sequoiacap.com/article/services-the-new-software', 'https://www.campus.sg/us-vs-uk-universities-what-singapore-students-should-consider-before-choosing-campus-sg/',
     'https://www.forbes.com/councils/forbesbusinesscouncil/2026/10/13/why-venture-capital-money-isnt-right-for-every-founder/', 'https://www.nus.edu.sg/', 'https://www.sedifly.com/',
   ].sort());
   const ids = coverageRows(env).slice(1).map((r) => r[col('Coverage ID')]);
@@ -61,8 +74,8 @@ for (const format of ['bytes', 'string']) test(`blocker 2 with ${format} body da
   const r = Object.fromEntries(log[0].map((h, i) => [h, log[1][i]]));
   assert.equal(r.Function, 'runIngest');
   assert.equal(r['Messages seen'], 7);
-  assert.equal(r['To review'], 2);
-  assert.equal(r['New rows'], 7);
+  assert.equal(r['To review'], 3, '2 messages labelled Review plus 1 Review Queue row');
+  assert.equal(r['New rows'], 6);
   assert.equal(r.Duplicates, 1);
   assert.equal(r['Status (OK / PARTIAL / FAILED)'], 'OK');
   assert.ok(JSON.parse(r.Detail).details.some((d) => d.outcome === 'review' && /allowlist/i.test(d.reason)));
@@ -70,7 +83,7 @@ for (const format of ['bytes', 'string']) test(`blocker 2 with ${format} body da
   // Second run: nothing to do, nothing new written, still logged.
   const second = run(sb, 'runIngest()');
   assert.equal(second.messagesSeen, 0);
-  assert.equal(coverageRows(env).length - 1, 7);
+  assert.equal(coverageRows(env).length - 1, 6);
   assert.equal(runLogRows(env).length, 3);
 });
 

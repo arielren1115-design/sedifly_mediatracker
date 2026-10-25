@@ -61,10 +61,24 @@ export function matchesQuery(text, query) {
   return query.phrases.every((p) => containsWhole(hay, p)) && query.words.every((w) => containsWhole(hay, w));
 }
 
-/** The primary search term, or any alias as an exact phrase. */
-function entityMatches(entity, text) {
-  if (matchesQuery(text, parseQuery(entity.primaryTerm))) return true;
-  return entity.aliases.some((a) => matchesQuery(text, { phrases: [squash(a)], words: [] }));
+const PERSON_TYPES = ['Founder', 'Strategist', 'Person'];
+const BRAND_TYPES = ['Brand', 'Company'];
+
+/**
+ * 'strong', 'ambiguous' or null.
+ * Brands, partners and events: any hit on the primary term or an alias is strong.
+ * People (founder, strategists): an alias hit is strong, and so is a hit on a primary term that carries an anchor word
+ * (such as Sedifly). A bare name is only ambiguous unless a brand mention corroborates it.
+ */
+function strengthFor(entity, text, brandMentioned) {
+  const primary = parseQuery(entity.primaryTerm);
+  const primaryHit = matchesQuery(text, primary);
+  const aliasHit = entity.aliases.some((a) => matchesQuery(text, { phrases: [squash(a)], words: [] }));
+  if (!PERSON_TYPES.includes(entity.type)) return primaryHit || aliasHit ? 'strong' : null;
+  if (aliasHit || (primaryHit && primary.words.length)) return 'strong';
+  const nameHit = primary.phrases.length > 0 && matchesQuery(text, { phrases: primary.phrases, words: [] });
+  if (primaryHit || nameHit) return brandMentioned ? 'strong' : 'ambiguous';
+  return null;
 }
 
 const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
@@ -90,9 +104,16 @@ export function isMonitored(entity, now, { honourEndDates = false } = {}) {
  * @param {object[]} entities
  * @param {string} text title, snippet and forwarder note joined together
  * @param {{now?: Date, honourEndDates?: boolean}} [options]
- * @returns {object[]} the monitored entities that match
+ * @returns {{entity: object, strength: 'strong'|'ambiguous'}[]} the monitored entities that match
  */
 export function matchEntities(entities, text, options = {}) {
   const now = options.now || new Date();
-  return entities.filter((e) => isMonitored(e, now, options) && entityMatches(e, text));
+  const monitored = entities.filter((e) => isMonitored(e, now, options));
+  const brandMentioned = monitored.some((e) => BRAND_TYPES.includes(e.type) && strengthFor(e, text, false) === 'strong');
+  const out = [];
+  for (const entity of monitored) {
+    const strength = strengthFor(entity, text, brandMentioned);
+    if (strength) out.push({ entity, strength });
+  }
+  return out;
 }

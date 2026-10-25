@@ -49,3 +49,14 @@ test('html helpers', () => {
   assert.equal(decodeEntities('Isn&#39;t &amp; &#x41; &unknown;'), "Isn't & A &unknown;");
   assert.equal(htmlToText('<td>Hello <b>Sedifly</b>,\n\n a&nbsp;firm</td><!-- x -->​'), 'Hello Sedifly, a firm');
 });
+
+import { alertNameOf as googleAlertName } from '../src/core/parsers/googleAlerts.js';
+import { alertNameOf as talkwalkerAlertName } from '../src/core/parsers/talkwalker.js';
+
+test('the alert name is read from the subject line', () => {
+  assert.equal(googleAlertName('Google Alert - Joash Lee'), 'Joash Lee');
+  assert.equal(googleAlertName('Fwd: Google Alert - "George Baxter" Sedifly'), '"George Baxter" Sedifly');
+  assert.equal(googleAlertName('Something else'), null);
+  assert.equal(talkwalkerAlertName('[Talkwalker Alerts] Alert for Sedifly'), 'Sedifly');
+  assert.equal(talkwalkerAlertName(''), null);
+});

@@ -47,24 +47,37 @@ test('every part of a query must be present, as whole words, ignoring case', () 
   assert.equal(matchesQuery('anything', { phrases: [], words: [] }), false, 'an empty query matches nothing');
 });
 
-test('brand: any mention of Sedifly matches, and so does a listed alias', () => {
-  assert.deepEqual(names('Sedifly opens a new office'), ['BR-001']);
-  assert.deepEqual(names('Visit sedifly.com today'), ['BR-001'], 'alias Sedifly.com');
-  assert.deepEqual(names('Sedifly-style essays'), ['BR-001'], 'a hyphen is a word boundary');
-  assert.deepEqual(names('Unrelated education news'), []);
+const strengths = (text, opts) => Object.fromEntries(matchEntities(entities, text, opts).map((m) => [m.entity.id, m.strength]));
+
+test('brand: any mention of Sedifly or a listed alias is a strong match', () => {
+  assert.deepEqual(strengths('Sedifly opens a new office'), { 'BR-001': 'strong' });
+  assert.deepEqual(strengths('Visit sedifly.com today'), { 'BR-001': 'strong' });
+  assert.deepEqual(strengths('Sedifly-style essays'), { 'BR-001': 'strong' }, 'a hyphen is a word boundary');
+  assert.deepEqual(strengths('Unrelated education news'), {});
 });
 
-test('founder and strategists', () => {
-  assert.deepEqual(names('Joash Lee, founder of Sedifly, spoke').sort(), ['BR-001', 'FO-001']);
-  assert.deepEqual(names('Baifern Boonduongprasert won an award'), ['STR-003'], 'a name only term is enough');
-  assert.deepEqual(names('Shaun Chew, a strategist at Sedifly').sort(), ['BR-001', 'STR-016']);
-  assert.deepEqual(names('Shaun Chew played football on Saturday'), [], 'a strategist name without Sedifly or an alias does not match');
-  assert.deepEqual(names('Shaun Chew LSE graduate profile'), ['STR-016'], 'the alias with the university matches');
+test('founder: the bare name is ambiguous, corroboration makes it strong', () => {
+  assert.deepEqual(strengths('Video Crew: Joash Lee, Felicia Low and others'), { 'FO-001': 'ambiguous' });
+  assert.deepEqual(strengths('Joash Lee, founder of Sedifly, spoke'), { 'BR-001': 'strong', 'FO-001': 'strong' }, 'Sedifly nearby corroborates');
+  assert.deepEqual(strengths('Joash Lee CEO addressed the crowd'), { 'FO-001': 'strong' }, 'a listed alias corroborates');
 });
 
-test('partners and events', () => {
-  assert.deepEqual(names('WWB Sedifly workshop recap').sort(), ['BR-001', 'PAR-001']);
-  assert.deepEqual(names('The Internship Guy webinar with TIG Sedifly').sort(), ['BR-001', 'PAR-002']);
+test('strategists are found without Sedifly, but a bare name is ambiguous', () => {
+  assert.deepEqual(strengths('Shaun Chew, a strategist at Sedifly'), { 'BR-001': 'strong', 'STR-016': 'strong' });
+  assert.deepEqual(strengths('Shaun Chew played football on Saturday'), { 'STR-016': 'ambiguous' });
+  assert.deepEqual(strengths('Shaun Chew LSE graduate profile'), { 'STR-016': 'strong' }, 'the alias with the university');
+  assert.deepEqual(strengths('Baifern Boonduongprasert won an award'), { 'STR-003': 'ambiguous' }, 'even a unique name is verified first');
+  assert.deepEqual(strengths('Baifern Boonduongprasert of Sedifly'), { 'BR-001': 'strong', 'STR-003': 'strong' });
+});
+
+test('only part of a name is not enough', () => {
+  assert.deepEqual(strengths('Shaun is here and Chew gum'), {});
+  assert.deepEqual(strengths('George went to see Baxter'), {});
+});
+
+test('partners and events are strong matches', () => {
+  assert.deepEqual(strengths('WWB Sedifly workshop recap'), { 'BR-001': 'strong', 'PAR-001': 'strong' });
+  assert.deepEqual(strengths('The Internship Guy webinar with TIG Sedifly'), { 'BR-001': 'strong', 'PAR-002': 'strong' });
 });
 
 test('monitoring status: Active always, Recent watch until the end date when asked to', () => {
@@ -78,7 +91,8 @@ test('monitoring status: Active always, Recent watch until the end date when ask
   assert.equal(isMonitored({ ...evt, endDate: 'Ongoing' }, new Date('2026-10-25'), { honourEndDates: true }), true);
 });
 
-test('inactive entities are not matched', () => {
-  const list = entities.map((e) => (e.id === 'BR-001' ? { ...e, status: 'Paused' } : e));
+test('inactive entities are not matched, and a paused brand cannot corroborate a person', () => {
+  const list = entities.map((e) => (e.id === 'BR-001' ? { ...e, status: 'Ended' } : e));
   assert.deepEqual(matchEntities(list, 'Sedifly opens a new office'), []);
+  assert.deepEqual(Object.fromEntries(matchEntities(list, 'Joash Lee of Sedifly').map((m) => [m.entity.id, m.strength])), { 'FO-001': 'ambiguous' });
 });

@@ -108,6 +108,7 @@ export function parse(message) {
     receivedAt: message.date,
     forwarderEmail: extractEmail(message.from) || null,
     forwarderNote: extractNote(message.plainBody),
+    alertName: null,
   };
   if (urls.length) {
     return urls.map((url) => ({ ...base, url, channelHint: null, attachments: [] }));

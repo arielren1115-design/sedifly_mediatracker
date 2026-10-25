@@ -1,46 +1,47 @@
 [
-{
-  "gmailMessageId": "fx-multi",
-  "route": "Team forward",
-  "url": "https://www.sedifly.com/",
-  "title": null,
-  "snippet": null,
-  "outlet": null,
-  "publishedAt": null,
-  "receivedAt": "2026-10-18T10:13:33.000Z",
-  "forwarderEmail": "team.member@sedifly.com",
-  "forwarderNote": null,
-  "channelHint": null,
-  "attachments": []
-}
-,
-{
-  "gmailMessageId": "fx-multi",
-  "route": "Team forward",
-  "url": "https://sequoiacap.com/article/services-the-new-software",
-  "title": null,
-  "snippet": null,
-  "outlet": null,
-  "publishedAt": null,
-  "receivedAt": "2026-10-18T10:13:33.000Z",
-  "forwarderEmail": "team.member@sedifly.com",
-  "forwarderNote": null,
-  "channelHint": null,
-  "attachments": []
-}
-,
-{
-  "gmailMessageId": "fx-multi",
-  "route": "Team forward",
-  "url": "https://www.nus.edu.sg/",
-  "title": null,
-  "snippet": null,
-  "outlet": null,
-  "publishedAt": null,
-  "receivedAt": "2026-10-18T10:13:33.000Z",
-  "forwarderEmail": "team.member@sedifly.com",
-  "forwarderNote": null,
-  "channelHint": null,
-  "attachments": []
-}
+  {
+    "gmailMessageId": "fx-multi",
+    "route": "Team forward",
+    "url": "https://www.sedifly.com/",
+    "title": null,
+    "snippet": null,
+    "outlet": null,
+    "publishedAt": null,
+    "receivedAt": "2026-10-18T10:13:33.000Z",
+    "forwarderEmail": "team.member@sedifly.com",
+    "forwarderNote": null,
+    "channelHint": null,
+    "attachments": [],
+    "alertName": null
+  },
+  {
+    "gmailMessageId": "fx-multi",
+    "route": "Team forward",
+    "url": "https://sequoiacap.com/article/services-the-new-software",
+    "title": null,
+    "snippet": null,
+    "outlet": null,
+    "publishedAt": null,
+    "receivedAt": "2026-10-18T10:13:33.000Z",
+    "forwarderEmail": "team.member@sedifly.com",
+    "forwarderNote": null,
+    "channelHint": null,
+    "attachments": [],
+    "alertName": null
+  },
+  {
+    "gmailMessageId": "fx-multi",
+    "route": "Team forward",
+    "url": "https://www.nus.edu.sg/",
+    "title": null,
+    "snippet": null,
+    "outlet": null,
+    "publishedAt": null,
+    "receivedAt": "2026-10-18T10:13:33.000Z",
+    "forwarderEmail": "team.member@sedifly.com",
+    "forwarderNote": null,
+    "channelHint": null,
+    "attachments": [],
+    "alertName": null
+  }
 ]

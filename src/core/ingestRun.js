@@ -3,11 +3,14 @@ import { selectParser } from './ingestRouting.js';
 import { toCoverageRow, itemKey } from './coverageRow.js';
 import { normalizeUrl } from './normalizeUrl.js';
 import { mergeList } from './dedupe.js';
+import { matchEntities } from './entities.js';
 
 /**
  * @param {object} deps
  * @param {{id:string, sourceLabel:string}[]} deps.candidates messages to process, already limited to the batch size
  * @param {(id:string) => object} deps.getMessage
+ * @param {object[]} deps.entities monitored entities (see entities.js). Required: an empty list would skip every alert
+ * @param {object} [deps.entityOptions] options for matchEntities
  * @param {object} deps.index dedupe index over Coverage and Review Queue (see dedupe.js); updated as rows are written
  * @param {(n:number) => string[]} deps.allocateIds
  * @param {(row: object) => number} deps.appendCoverageRow returns the new row number
@@ -20,7 +23,8 @@ import { mergeList } from './dedupe.js';
  * @param {string} deps.allowlist
  */
 export function processBatch(deps) {
-  const s = { messagesSeen: 0, itemsParsed: 0, newRows: 0, duplicates: 0, toReview: 0, errors: 0, skippedForBudget: 0, details: [] };
+  if (!Array.isArray(deps.entities) || !deps.entities.length) throw new Error('No monitored entities were loaded, so nothing can be matched');
+  const s = { messagesSeen: 0, itemsParsed: 0, newRows: 0, duplicates: 0, toReview: 0, skippedNoEntity: 0, errors: 0, skippedForBudget: 0, details: [] };
   for (const [index, { id, sourceLabel }] of deps.candidates.entries()) {
     if (deps.shouldStop()) { s.skippedForBudget = deps.candidates.length - index; break; }
     s.messagesSeen++;
@@ -44,13 +48,16 @@ export function processBatch(deps) {
         continue;
       }
       s.itemsParsed += items.length;
-      const counts = { newRows: 0, duplicates: 0, reviewRows: 0 };
+      const counts = { newRows: 0, duplicates: 0, reviewRows: 0, skipped: [], entities: new Set() };
       for (const item of items) handleItem(deps, item, counts);
       s.newRows += counts.newRows;
       s.duplicates += counts.duplicates;
       s.toReview += counts.reviewRows;
+      s.skippedNoEntity += counts.skipped.length;
       deps.markProcessed(id, sourceLabel);
-      s.details.push({ id, outcome: 'processed', items: items.length, newRows: counts.newRows, duplicates: counts.duplicates, reviewRows: counts.reviewRows });
+      const detail = { id, outcome: 'processed', items: items.length, newRows: counts.newRows, duplicates: counts.duplicates, reviewRows: counts.reviewRows, entities: [...counts.entities] };
+      if (counts.skipped.length) detail.skipped = counts.skipped;
+      s.details.push(detail);
     } catch (e) {
       s.errors++;
       s.details.push({ id, outcome: 'error', reason: String(e.message || e) });
@@ -82,15 +89,49 @@ function handleItem(deps, item, counts) {
     return;
   }
 
-  const similar = norm && item.title ? index.similarTitle(item.title, norm, now.getTime()) : null;
   const entry = { url: item.url || '', normalisedUrl: norm || '', title: item.title || '', detectedAt: now, sourceRoute: item.route, foundIn: 'Tool', gmailMessageId: item.gmailMessageId };
-  if (similar) {
-    const row = { ...toCoverageRow(item, { now, normalisedUrl: norm }), 'Review reason': 'Possible duplicate' };
+  const addReview = (reason, entityName) => {
+    const row = { ...toCoverageRow(item, { now, normalisedUrl: norm }), 'Review reason': reason };
+    if (entityName) row.Entity = entityName;
     index.add({ ...entry, sheet: 'Review Queue', rowNumber: deps.appendReviewRow(row), coverageId: '' });
     counts.reviewRows++;
-  } else {
-    const coverageId = deps.allocateIds(1)[0];
-    index.add({ ...entry, sheet: 'Coverage', rowNumber: deps.appendCoverageRow(toCoverageRow(item, { coverageId, now, normalisedUrl: norm })), coverageId });
-    counts.newRows++;
+  };
+
+  const similar = norm && item.title ? index.similarTitle(item.title, norm, now.getTime()) : null;
+  if (similar) { addReview('Possible duplicate'); return; }
+
+  const gate = entityGate(deps, item);
+  gate.ids.forEach((e) => counts.entities.add(e));
+  if (gate.outcome === 'none' && item.route !== 'Team forward') {
+    counts.skipped.push({ url: item.url, route: item.route, reason: 'No monitored entity matched' });
+    return;
   }
+  if (gate.outcome === 'ambiguous') { addReview('Ambiguous entity match', gate.names.length === 1 ? gate.names[0] : ''); return; }
+
+  const coverageId = deps.allocateIds(1)[0];
+  index.add({ ...entry, sheet: 'Coverage', rowNumber: deps.appendCoverageRow(toCoverageRow(item, { coverageId, now, normalisedUrl: norm })), coverageId });
+  counts.newRows++;
+}
+
+/**
+ * Spec 9.1 pre-match, with the owners' rule that ambiguous matches go to review. The alert's own name counts as an ambiguous hint,
+ * so a result whose snippet lacks the name is reviewed instead of skipped.
+ * @returns {{outcome: 'strong'|'ambiguous'|'none', ids: string[], names: string[]}}
+ */
+function entityGate(deps, item) {
+  const text = [item.title, item.snippet, item.forwarderNote].filter(Boolean).join(' ');
+  const found = new Map(matchEntities(deps.entities, text, deps.entityOptions).map((m) => [m.entity.id, m]));
+  if (item.alertName) {
+    for (const m of matchEntities(deps.entities, item.alertName, deps.entityOptions)) {
+      if (!found.has(m.entity.id)) found.set(m.entity.id, { entity: m.entity, strength: 'ambiguous' });
+    }
+  }
+  const all = [...found.values()];
+  const strong = all.some((m) => m.strength === 'strong');
+  const ambiguous = all.filter((m) => m.strength === 'ambiguous');
+  return {
+    outcome: strong ? 'strong' : ambiguous.length ? 'ambiguous' : 'none',
+    ids: all.map((m) => m.entity.id),
+    names: ambiguous.map((m) => m.entity.name),
+  };
 }
