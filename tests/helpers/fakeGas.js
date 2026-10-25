@@ -1,6 +1,7 @@
 // In-memory stand-ins for the Google services, loaded around the real built bundle.
 import vm from 'node:vm';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runBuild } from '../../scripts/build.js';
 import { REQUIRED_PROPERTIES } from '../../src/core/properties.js';
@@ -119,7 +120,7 @@ export function makeEnv(props) {
 
 /** Builds the bundle and runs it inside the env's sandbox. Returns the sandbox. */
 export async function load(env) {
-  const dist = await runBuild();
+  const dist = await runBuild({ outDir: mkdtempSync(path.join(tmpdir(), 'sedifly-dist-')) }); // own folder, so test files can run in parallel
   vm.createContext(env.sandbox);
   vm.runInContext(`${readFileSync(path.join(dist, 'Code.js'), 'utf8')}\n${readFileSync(path.join(dist, 'Entrypoints.js'), 'utf8')}`, env.sandbox);
   return env.sandbox;

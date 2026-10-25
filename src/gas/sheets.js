@@ -94,10 +94,10 @@ export function appendObjects(sheet, objects) {
 /** Header names the script may rewrite on an existing row. Everything else is human owned or permanent (spec 6.1). */
 const UPDATABLE = ['Source route', 'Found in', 'Syndicated copies', 'Last updated'];
 
-/** Writes values into named cells of one existing row. Refuses any header that is not on the allowed list. */
-export function updateCells(sheet, rowNumber, values) {
+/** Writes values into named cells of one existing row. Refuses any header that is not on the allowed list (default: the script owned Coverage cells). */
+export function updateCells(sheet, rowNumber, values, allowed = UPDATABLE) {
   for (const [header, value] of Object.entries(values)) {
-    if (!UPDATABLE.includes(header)) throw new Error(`The script may not change ${header}`);
+    if (!allowed.includes(header)) throw new Error(`The script may not change ${header}`);
     sheet.getRange(rowNumber, columnByHeader(sheet, header), 1, 1).setValues([[value]]);
   }
 }

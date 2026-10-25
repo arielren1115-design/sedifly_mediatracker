@@ -6,8 +6,8 @@ import path from 'node:path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-export async function runBuild({ dev = false } = {}) {
-  const dist = path.join(root, 'dist');
+export async function runBuild({ dev = false, outDir = path.join(root, 'dist') } = {}) {
+  const dist = outDir;
   rmSync(dist, { recursive: true, force: true });
   mkdirSync(dist, { recursive: true });
   await build({
