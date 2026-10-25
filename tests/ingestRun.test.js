@@ -321,3 +321,84 @@ test('two comments on the same Reddit thread are two items, never merged as synd
   assert.deepEqual(w.coverage.map((r) => r.Channel), Array(11).fill('Reddit'));
   assert.deepEqual(w.coverage.map((r) => r['Source type']), Array(11).fill('Social Media'));
 });
+
+// ---- classification (M3) ----
+import { loadRules, activeRules } from '../src/core/rules.js';
+const rules = activeRules(loadRules(parseCsv(readFileSync(new URL('../fixtures/config/rules.csv', import.meta.url), 'utf8'))));
+const answer = (over = {}) => ({
+  is_relevant: true, entity: 'Sedifly', channel: 'News', source_type: 'Media', outlet: 'Forbes', title: 'Some headline of many words',
+  published_date: '2026-10-13', category: 'Brand', priority: 'Standard', sentiment: 'Positive', matched_rule_ids: ['MR-006'],
+  critical_signal: false, summary: 'Summary.', confidence: 0.9, reasoning: 'Because.', ...over,
+});
+function classifier(replyFor) {
+  const fails = new Map(); const calls = [];
+  return {
+    calls, fails,
+    ctx: {
+      model: 'claude-haiku-4-5', threshold: 0.7, today: '2026-10-25', entities, rules,
+      call: (req) => { calls.push(req); return replyFor(calls.length); },
+      fetchPageText: () => null,
+      failures: { count: (id) => fails.get(id) || 0, add: (id) => { fails.set(id, (fails.get(id) || 0) + 1); return fails.get(id); }, clear: (id) => { fails.delete(id); } },
+    },
+  };
+}
+
+test('with a classifier, rows carry category, priority, rules and verification', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer() }));
+  const s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx }));
+  assert.equal(s.status, 'OK');
+  assert.ok(s.classified >= 1);
+  const row = w.coverage[0];
+  assert.equal(row.Category, 'Brand');
+  assert.equal(row.Priority, 'Standard');
+  assert.equal(row['Rules matched'], 'MR-006');
+  assert.equal(row.Verification, 'Verified');
+  assert.equal(row['Classifier confidence'], 0.9);
+});
+
+test('low confidence goes to the Review Queue with the model values filled in', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer({ confidence: 0.4 }) }));
+  const s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx }));
+  assert.equal(w.coverage.length, 0);
+  assert.equal(w.reviewRows.length, s.toReview);
+  assert.equal(w.reviewRows[0]['Review reason'], 'Low confidence');
+  assert.equal(w.reviewRows[0].Category, 'Brand');
+  assert.equal(w.reviewRows[0].Verification, 'Needs verification');
+  assert.deepEqual(w.processed, ['tw']);
+});
+
+test('an API failure leaves the message unlabelled until the third failed run, then reviews it', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'retry', status: 529 }));
+  let s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx }));
+  assert.equal(s.deferred, 1);
+  assert.equal(s.status, 'FAILED');
+  assert.deepEqual(w.processed, []);
+  assert.equal(s.details[0].outcome, 'deferred');
+  s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx }));
+  assert.equal(s.deferred, 1);
+  s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx }));
+  assert.equal(s.deferred, 0);
+  assert.equal(w.reviewRows.at(-1)['Review reason'], 'Classifier unavailable');
+  assert.deepEqual(w.processed, ['tw']);
+});
+
+test('the time budget stops classification and defers the message', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer() }));
+  let calls = 0;
+  const s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx, shouldStop: () => ++calls > 1 }));
+  assert.equal(s.deferred, 1);
+  assert.equal(k.calls.length, 0);
+});
+
+test('a classified alert that is not about a monitored entity is skipped and logged, not written', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer({ is_relevant: false, entity: null, category: 'General', priority: 'Low', matched_rule_ids: [], confidence: 0.95 }) }));
+  const s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx }));
+  assert.equal(w.coverage.length, 0);
+  assert.ok(s.skippedNoEntity >= 1);
+  assert.match(JSON.stringify(s.details), /not about a monitored entity/);
+});

@@ -3,6 +3,7 @@ import { labelIdsByName, listCandidates, getMessage, markProcessed, markReview }
 import { appendObjects, assertTabsReady, readIndexRows, updateCells } from '../gas/sheets.js';
 import { allocateCoverageIds } from '../gas/coverageIds.js';
 import { loadMonitoredEntities } from '../gas/entities.js';
+import { classifierConfigured, buildClassifier } from '../gas/classifier.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { processBatch } from '../core/ingestRun.js';
 import { createIndex } from '../core/dedupe.js';
@@ -32,10 +33,14 @@ export function runIngest() {
     if (candidates.length) {
       const coverage = ss.getSheetByName('Coverage');
       const reviewQueue = ss.getSheetByName('Review Queue');
+      const entities = loadMonitoredEntities();
+      const classify = classifierConfigured();
+      if (!classify) log('runIngest: no Anthropic API key set, rows are written without classification');
       summary = processBatch({
         candidates,
         getMessage,
-        entities: loadMonitoredEntities(),
+        entities,
+        classifier: classify ? buildClassifier(entities) : null,
         index: createIndex(readIndexRows(ss)),
         allocateIds: allocateCoverageIds,
         appendCoverageRow: (row) => appendObjects(coverage, [row]),

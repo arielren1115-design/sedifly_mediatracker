@@ -16,12 +16,13 @@ export function itemKey(item) {
 
 /**
  * @param {object} item RawItem
- * @param {{coverageId?: string|null, now: Date, normalisedUrl?: string|null}} ctx coverageId is omitted for Review Queue rows
+ * @param {{coverageId?: string|null, now: Date, normalisedUrl?: string|null, classification?: object|null, threshold?: number}} ctx
+ *   coverageId is omitted for Review Queue rows. With a classification, its fields fill the row; Verification is Verified only at or above the threshold.
  * @returns {Object<string, any>} header name to value
  */
-export function toCoverageRow(item, { coverageId, now, normalisedUrl }) {
+export function toCoverageRow(item, { coverageId, now, normalisedUrl, classification, threshold }) {
   const channel = item.channelHint || channelFromUrl(item.url) || '';
-  return {
+  const row = {
     ...(coverageId ? { 'Coverage ID': coverageId } : {}),
     'Detected at': now,
     'Published at': item.publishedAt || '',
@@ -39,5 +40,28 @@ export function toCoverageRow(item, { coverageId, now, normalisedUrl }) {
     'Gmail message ID': item.gmailMessageId,
     'Logged by': 'script',
     'Last updated': now,
+  };
+  return classification ? applyClassification(row, item, classification, threshold) : row;
+}
+
+/** Link derived channel and source type win over the model for social links, which the script can tell for certain. */
+function applyClassification(row, item, c, threshold) {
+  const fromLink = row.Channel;
+  const social = SOCIAL_CHANNELS.includes(fromLink);
+  return {
+    ...row,
+    Entity: c.entity || '',
+    Channel: fromLink || c.channel,
+    'Source type': social ? 'Social Media' : c.source_type,
+    Outlet: row.Outlet || c.outlet,
+    Title: row.Title || c.title,
+    'Published at': row['Published at'] || c.published_date || '',
+    Excerpt: row.Excerpt || String(c.summary || '').slice(0, 500),
+    Category: c.category,
+    Priority: c.priority,
+    Sentiment: c.sentiment,
+    'Rules matched': c.matched_rule_ids.join(', '),
+    'Classifier confidence': c.confidence,
+    Verification: typeof threshold === 'number' && c.confidence >= threshold ? 'Verified' : 'Needs verification',
   };
 }

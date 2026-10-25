@@ -189,3 +189,55 @@ test('an F5Bot alert goes through Gmail and the built bundle: every mention beco
   assert.ok(rows.every((r) => String(r[col('URL')]).startsWith('https://www.reddit.com/')));
   assert.deepEqual(labelsOf(env, 'f5'), ['L_Monitoring/Processed']);
 });
+
+// ---- classification through the built bundle ----
+const claudeReply = (input) => ({ status: 200, body: JSON.stringify({ stop_reason: 'tool_use', content: [{ type: 'tool_use', name: 'record_classification', input }] }) });
+const verdict = (over = {}) => ({
+  is_relevant: true, entity: 'Sedifly', channel: 'News', source_type: 'Media', outlet: 'Forbes', title: 'Why Venture Capital Money Is Not Right',
+  published_date: '2026-10-13', category: 'Brand', priority: 'Standard', sentiment: 'Positive', matched_rule_ids: ['MR-006'],
+  critical_signal: false, summary: 'Founder profile.', confidence: 0.92, reasoning: 'Because.', ...over,
+});
+async function readyWithClassifier() {
+  const r = await ready();
+  r.env.store.ANTHROPIC_API_KEY = 'sk-test';
+  r.env.store.CLAUDE_MODEL = 'claude-haiku-5-5';
+  const rulesTab = fakeSheet('Monitoring Rules');
+  parseCsv(readFileSync(new URL('../fixtures/config/rules.csv', import.meta.url), 'utf8')).forEach((row) => rulesTab.rows.push(row));
+  r.env.sheets.x['Monitoring Rules'] = rulesTab;
+  return r;
+}
+
+test('with an API key, rows are classified and the request names the model and a tool', async () => {
+  const { env, sb, add } = await readyWithClassifier();
+  await add('a2', 'talkwalker_native', ['Monitoring/Automated']);
+  for (let i = 0; i < 4; i++) env.state.fetchQueue.push(claudeReply(verdict()));
+  const s = run(sb, 'runIngest()');
+  assert.equal(s.status, 'OK');
+  const headers = coverageRows(env)[0];
+  const first = coverageRows(env)[1];
+  assert.equal(first[headers.indexOf('Category')], 'Brand');
+  assert.equal(first[headers.indexOf('Verification')], 'Verified');
+  assert.equal(first[headers.indexOf('Rules matched')], 'MR-006');
+  const call = env.state.fetches[0];
+  assert.match(call.url, /api\.anthropic\.com/);
+  assert.equal(call.options.headers['x-api-key'], 'sk-test');
+  assert.equal(JSON.parse(call.options.payload).model, 'claude-haiku-5-5');
+  assert.equal('temperature' in JSON.parse(call.options.payload), false);
+});
+
+test('when the API is down the message stays unlabelled, and the third failed run sends it to review', async () => {
+  const { env, sb, add } = await readyWithClassifier();
+  await add('a2', 'talkwalker_native', ['Monitoring/Automated']);
+  const down = () => { for (let i = 0; i < 3; i++) env.state.fetchQueue.push({ status: 529, body: '{}' }); };
+  down();
+  let s = run(sb, 'runIngest()');
+  assert.equal(s.deferred, 1);
+  assert.deepEqual(labelsOf(env, 'a2'), ['L_Monitoring/Automated']);
+  assert.equal(coverageRows(env).length, 1);
+  down(); run(sb, 'runIngest()');
+  assert.deepEqual(labelsOf(env, 'a2'), ['L_Monitoring/Automated']);
+  down(); s = run(sb, 'runIngest()');
+  assert.deepEqual(labelsOf(env, 'a2'), ['L_Monitoring/Processed'], 'the item now lives in the Review Queue');
+  const rq = env.sheets.x['Review Queue'].rows;
+  assert.equal(rq[1][rq[0].indexOf('Review reason')], 'Classifier unavailable');
+});

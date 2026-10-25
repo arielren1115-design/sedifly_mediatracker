@@ -27,7 +27,7 @@ export function fakeSheet(name) {
 
 export const goodProps = () => ({
   ...Object.fromEntries(REQUIRED_PROPERTIES.map((k) => [k, 'x'])),
-  MODE: 'PROD', CONFIDENCE_THRESHOLD: '0.70', BATCH_MAX_MESSAGES: '10', RUN_TIME_BUDGET_MS: '270000', BACKFILL_CAPTURE_LIMIT: '1500',
+  MODE: 'PROD', ANTHROPIC_API_KEY: 'PLACEHOLDER', CONFIDENCE_THRESHOLD: '0.70', BATCH_MAX_MESSAGES: '10', RUN_TIME_BUDGET_MS: '270000', BACKFILL_CAPTURE_LIMIT: '1500',
   TEAM_SENDER_ALLOWLIST: '@sedifly.com',
 });
 
@@ -37,6 +37,7 @@ export function makeEnv(props) {
   const triggers = [];
   const mailbox = []; // {id, labelIds:Set, raw}
   const store = { ...props };
+  const mail = []; // {to, subject, body} sent with MailApp
   const state = { locked: false, tz: {}, dataFormat: 'bytes', sleeps: [], fetches: [], fetchQueue: [] }; // Gmail body data: 'bytes' (signed byte arrays, as Apps Script returns) or 'string'
   const ssFor = (id) => {
     sheets[id] = sheets[id] || { Sheet1: fakeSheet('Sheet1') };
@@ -63,6 +64,7 @@ export function makeEnv(props) {
     }) },
     Utilities: {
       sleep: (ms) => { state.sleeps.push(ms); },
+      formatDate: (d, _tz, _fmt) => new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10),
       getUuid: () => `uuid-${Math.random().toString(16).slice(2)}`,
       // Strict like Apps Script: wrong alphabet or missing padding throws.
       base64Decode: (d) => {
@@ -96,6 +98,7 @@ export function makeEnv(props) {
         },
       },
     } },
+    MailApp: { sendEmail: (m) => { if (state.mailFails) throw new Error('mail quota'); mail.push({ ...m }); } },
     UrlFetchApp: {
       fetch: (url, options) => {
         state.fetches.push({ url, options });
@@ -111,7 +114,7 @@ export function makeEnv(props) {
       newTrigger: (h) => { const t = { getHandlerFunction: () => h }; return { timeBased: () => ({ everyMinutes() { return this; }, everyHours() { return this; }, everyDays() { return this; }, atHour() { return this; }, create: () => { triggers.push(t); } }) }; },
     },
   };
-  return { sandbox, sheets, labels, triggers, store, mailbox, state };
+  return { sandbox, sheets, labels, triggers, store, mailbox, state, mail };
 }
 
 /** Builds the bundle and runs it inside the env's sandbox. Returns the sandbox. */

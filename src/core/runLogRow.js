@@ -5,7 +5,7 @@ const DETAIL_LIMIT = 5000;
  * @returns {Object<string, any>} Run Log row by header name
  */
 export function buildRunLogRow({ runId, fn, startedAt, durationMs, summary, status }) {
-  const detail = JSON.stringify({ details: summary.details || [], skippedForBudget: summary.skippedForBudget || 0, note: summary.note || undefined });
+  const detail = JSON.stringify({ details: summary.details || [], skippedForBudget: summary.skippedForBudget || 0, deferred: summary.deferred || undefined, classified: summary.classified || undefined, note: summary.note || undefined });
   return {
     'Run ID': runId,
     Function: fn,

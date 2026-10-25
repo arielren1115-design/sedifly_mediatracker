@@ -11,7 +11,7 @@ export const REQUIRED_PROPERTIES = [
 export const OPTIONAL_PROPERTIES = ['HEARTBEAT_PING_URL'];
 
 /** Managed by the script itself, never required up front. */
-export const MANAGED_PROPERTIES = ['NEXT_COVERAGE_ID', 'LAST_SUCCESS_AT'];
+export const MANAGED_PROPERTIES = ['NEXT_COVERAGE_ID', 'LAST_SUCCESS_AT', 'CLASSIFIER_FAILS'];
 
 export const MODES = ['PROD', 'BLIND'];
 
