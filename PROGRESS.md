@@ -200,7 +200,7 @@ Wire classification into the ingest flow (after the entity gate, with the D12 pa
 - Channel and Source type are now filled when the link decides them (spec 8.3): Reddit, Hacker News and social links get Channel `Reddit`, `Hacker News` or `Social`, and Source type `Social Media`. Other links wait for the classifier.
 - Proposed spec change: add `itemKind` to RawItem.
 - Open risk: F5Bot can pause a keyword ("Keyword has hit its daily limit and was paused, back in 24 hours"). While paused, mentions are not emailed and so cannot be seen. A broad keyword will hit this; a keyword for a rare name like Sedifly is unlikely to. Worth surfacing in the Run Log or digest later (M5 or M6).
-- Remaining for M1: the live F5Bot test in DEV (Gmail filter on `alerts@f5bot.com`, then check the Coverage tab).
+- Live F5Bot test passed (Ariel, 2026-10-25): the alert moved from Monitoring/Automated to Monitoring/Processed. M1 is closed.
 - Tests: 194 passing, including a run of the built bundle with a fake Gmail.
 
 
@@ -242,3 +242,6 @@ DoD: disabling the ingest trigger produces an ops email within 1 h (internal) an
 
 ## Consolidated spec changes
 See `SPEC_CHANGES.md` (32 items with section, current text, proposal, reason and status).
+
+### 2026-10-25: F5Bot live check passed
+The F5Bot alert moved from `Monitoring/Automated` to `Monitoring/Processed` in DEV, so all four sources (Google Alerts, Talkwalker, F5Bot, team forwards) are live-tested. M1 is closed.
