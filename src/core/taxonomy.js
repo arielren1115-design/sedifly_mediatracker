@@ -1,5 +1,5 @@
-// Classification vocabulary. Values come from the owners (Ben, 2026-10-25); the one line definitions are drawn from the
-// Monitoring Rules and Monitored Entities sheets and are DRAFT until Ben confirms them.
+// Classification vocabulary. Values and one line definitions are confirmed by the owners (2026-10-25); the definitions were
+// drawn from the Monitoring Rules and Monitored Entities sheets.
 
 export const CATEGORIES = [
   { value: 'General', definition: 'Education, EdTech or AI items with clear Sedifly, strategist or market relevance. Generic education or AI news with no Sedifly connection is not relevant.' },
@@ -15,10 +15,10 @@ export const PRIORITIES = [
   { value: 'Low', definition: 'Archive only: duplicates, syndicated copies, low value listings, historical items and low relevance general material (MR-010 to MR-014).' },
 ];
 
-/** DRAFT definitions: Ben still to confirm where Reddit, Hacker News and forum posts belong. */
+/** Definitions confirmed by the owners (2026-10-25). Reddit, Hacker News and forum posts count as Social Media. */
 export const SOURCE_TYPES = [
   { value: 'Media', definition: 'News and blog coverage published by a media outlet or publication.' },
-  { value: 'Social Media', definition: 'A post or comment on a social platform such as LinkedIn, Instagram, X, TikTok, Facebook or YouTube.' },
+  { value: 'Social Media', definition: 'A post or comment on a social platform such as LinkedIn, Instagram, X, TikTok, Facebook or YouTube. Reddit, Hacker News and forum posts also count as Social Media.' },
   { value: 'Non-Media Listings', definition: 'A company directory or aggregator listing that is not editorial coverage.' },
 ];
 
