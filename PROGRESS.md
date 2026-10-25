@@ -171,3 +171,10 @@ DoD: golden set eval report committed with the 9.4 targets met or gaps explained
 
 ### Still to build
 Wire classification into the ingest flow (after the entity gate, with the D12 page fetch and the three-failure counter), the Review Queue Approve and Reject sync, the eval script, and live demonstrations of the three failure paths.
+
+### 2026-10-25 later: live findings and owner decisions
+- Live test of the entity gate: the ambiguous forward (Shaun Chew) went to the Review Queue correctly. The two strong forwards failed with `Header not found: Coverage ID in Coverage`: the Coverage tab's header row had been removed. Nothing was lost; the messages kept their labels. Fixed by re-running `setup()`. New: `runIngest` now checks that every tab and column exists before doing any work, and fails with "Run setup() to restore it". Covered by a test that clears the header row.
+- Ben confirmed: the taxonomy definitions are good, and the Coverage tab needs a **Source type** column (Media, Social Media, Non-Media Listings). Added to the Coverage and Review Queue tabs with a dropdown (existing sheets get the column added at the end by `setup()`), and added as a required field in the classifier output. Still to confirm with Ben: where Reddit, Hacker News and forum posts belong.
+- Ariel approved the prompt wording and chose the cheaper model: DEV `CLAUDE_MODEL` is now `claude-haiku-5-5`. Not tested against the real API yet.
+- Golden set: Ariel's sheet has 50 rows and no header. 46 are the same press release on different sites, 1 has no URL, only the category is recorded (no entity, priority, sentiment or rules), and the title column holds the outlet name for most rows. Not usable as it stands. `fixtures/golden/golden_template.csv` has the columns and 7 prefilled rows, and `fixtures/golden/README.md` lists the cases needed.
+- Two labels conflict with the confirmed category definitions: the Forbes 13 October founder piece and the 20 August press release are General in Ariel's sheet, but the Brand definition says a direct third party mention of Sedifly and founder profile coverage are Brand. Ben to decide which is right.

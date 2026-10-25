@@ -1,6 +1,6 @@
 // The classifier prompt, tool schema and request builder (BUILD_SPEC 9.2). Version controlled: change PROMPT_VERSION with the text.
 // TODO(Ariel): review the wording before M3 sign-off.
-import { CATEGORIES, PRIORITIES, SENTIMENTS, CHANNELS } from './taxonomy.js';
+import { CATEGORIES, PRIORITIES, SENTIMENTS, CHANNELS, SOURCE_TYPES } from './taxonomy.js';
 import { channelFromUrl } from './channel.js';
 
 export const PROMPT_VERSION = '1';
@@ -20,7 +20,7 @@ Rules for filling it in:
 5. Priority: follow the active rules. Use the default priority of the best matching rule, and list every active rule whose trigger applies in matched_rule_ids.
 6. critical_signal: set it to true if any reasonable reading of the item could be Critical, for example reputational damage, a material factual error about Sedifly, or a high impact item you are unsure about. A false alarm is better than a missed one.
 7. Sentiment: from the point of view of the monitored entity. Use Unclear when it cannot be told.
-8. channel: use channel_hint when it is given. Otherwise pick the best fit from the list.
+8. channel: use channel_hint when it is given. Otherwise pick the best fit from the list. source_type is a separate classification: use the source type definitions.
 9. confidence: a number from 0 to 1 for how sure you are that every field is right.
 10. Write summary (at most 30 words) and reasoning (at most 50 words) in plain English. Do not use em dashes or en dashes.`;
 
@@ -50,6 +50,7 @@ export function buildTool({ entityNames, ruleIds }) {
         outlet: { type: 'string', description: 'Publication, subreddit or site name.' },
         title: { type: 'string' },
         published_date: { type: ['string', 'null'], description: 'YYYY-MM-DD, or null if unknown.' },
+        source_type: { type: 'string', enum: SOURCE_TYPES.map((t) => t.value) },
         category: { type: 'string', enum: CATEGORIES.map((c) => c.value) },
         priority: { type: 'string', enum: PRIORITIES.map((p) => p.value) },
         sentiment: { type: 'string', enum: SENTIMENTS },
@@ -59,7 +60,7 @@ export function buildTool({ entityNames, ruleIds }) {
         confidence: { type: 'number', description: 'From 0 to 1.' },
         reasoning: { type: 'string', description: 'At most 50 words.' },
       },
-      required: ['is_relevant', 'entity', 'channel', 'outlet', 'title', 'published_date', 'category', 'priority', 'sentiment', 'matched_rule_ids', 'critical_signal', 'summary', 'confidence', 'reasoning'],
+      required: ['is_relevant', 'entity', 'channel', 'source_type', 'outlet', 'title', 'published_date', 'category', 'priority', 'sentiment', 'matched_rule_ids', 'critical_signal', 'summary', 'confidence', 'reasoning'],
       additionalProperties: false,
     },
   };
@@ -86,7 +87,7 @@ export function buildUserPayload({ item, candidates, entities, rules, today }) {
     candidate_entities: candidates,
     entities: entities.map((e) => ({ name: e.name, type: e.type, default_category: e.defaultCategory, primary_search_term: e.primaryTerm, aliases: e.aliases })),
     active_rules: rules.map((r) => ({ id: r.id, applies_to_category: r.appliesTo, default_priority: r.priority, route: r.route, trigger: r.trigger, notes: r.notes })),
-    taxonomy: { categories: CATEGORIES, priorities: PRIORITIES, sentiments: SENTIMENTS, channels: CHANNELS },
+    taxonomy: { categories: CATEGORIES, priorities: PRIORITIES, source_types: SOURCE_TYPES, sentiments: SENTIMENTS, channels: CHANNELS },
   };
 }
 

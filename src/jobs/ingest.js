@@ -1,6 +1,6 @@
 import { assertConfig, getProp, setProp, targetSpreadsheetId } from '../gas/config.js';
 import { labelIdsByName, listCandidates, getMessage, markProcessed, markReview } from '../gas/gmail.js';
-import { appendObjects, readIndexRows, updateCells } from '../gas/sheets.js';
+import { appendObjects, assertTabsReady, readIndexRows, updateCells } from '../gas/sheets.js';
 import { allocateCoverageIds } from '../gas/coverageIds.js';
 import { loadMonitoredEntities } from '../gas/entities.js';
 import { appendRunLog, log } from '../gas/runLog.js';
@@ -25,6 +25,7 @@ export function runIngest() {
     assertConfig();
     const budgetMs = Number(getProp('RUN_TIME_BUDGET_MS'));
     ss = SpreadsheetApp.openById(targetSpreadsheetId());
+    assertTabsReady(ss);
     const labelIds = labelIdsByName();
     const candidates = listCandidates(labelIds, Number(getProp('BATCH_MAX_MESSAGES')));
     let summary = { messagesSeen: 0, details: [], status: 'OK', errors: 0 };

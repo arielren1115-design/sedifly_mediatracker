@@ -15,6 +15,13 @@ export const PRIORITIES = [
   { value: 'Low', definition: 'Archive only: duplicates, syndicated copies, low value listings, historical items and low relevance general material (MR-010 to MR-014).' },
 ];
 
+/** DRAFT definitions: Ben still to confirm where Reddit, Hacker News and forum posts belong. */
+export const SOURCE_TYPES = [
+  { value: 'Media', definition: 'News and blog coverage published by a media outlet or publication.' },
+  { value: 'Social Media', definition: 'A post or comment on a social platform such as LinkedIn, Instagram, X, TikTok, Facebook or YouTube.' },
+  { value: 'Non-Media Listings', definition: 'A company directory or aggregator listing that is not editorial coverage.' },
+];
+
 export const SENTIMENTS = ['Positive', 'Neutral', 'Negative', 'Unclear'];
 
 export const CHANNELS = ['News', 'Blog', 'Listing', 'Reddit', 'Hacker News', 'Forum', 'Social', 'Podcast', 'Other'];

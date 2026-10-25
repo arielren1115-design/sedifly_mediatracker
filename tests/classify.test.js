@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/core/csv.js';
 import { loadEntities } from '../src/core/entities.js';
 import { loadRules, activeRules } from '../src/core/rules.js';
-import { CATEGORIES, PRIORITIES, SENTIMENTS, CHANNELS } from '../src/core/taxonomy.js';
+import { CATEGORIES, PRIORITIES, SENTIMENTS, CHANNELS, SOURCE_TYPES } from '../src/core/taxonomy.js';
 import { validateClassification } from '../src/core/validateClassification.js';
 import { buildRequest, buildUserPayload, buildTool, SYSTEM_PROMPT, PROMPT_VERSION, modelProfile } from '../src/core/classifyPrompt.js';
 import { decideOutcome } from '../src/core/classifyOutcome.js';
@@ -16,7 +16,7 @@ const active = activeRules(rules);
 const ctx = { entityNames: entities.map((e) => e.name), ruleIds: active.map((r) => r.id) };
 
 const good = () => ({
-  is_relevant: true, entity: 'Sedifly', channel: 'News', outlet: 'Forbes', title: 'Why Venture Capital Is Hard',
+  is_relevant: true, entity: 'Sedifly', channel: 'News', source_type: 'Media', outlet: 'Forbes', title: 'Why Venture Capital Is Hard',
   published_date: '2026-10-13', category: 'Brand', priority: 'Standard', sentiment: 'Positive',
   matched_rule_ids: ['MR-006'], critical_signal: false, summary: 'Founder profile mentioning Sedifly.', confidence: 0.92, reasoning: 'Direct mention of the company and its founder.',
 });
@@ -24,6 +24,7 @@ const good = () => ({
 test('taxonomy follows the owners: four categories, four priorities', () => {
   assert.deepEqual(CATEGORIES.map((c) => c.value), ['General', 'Event', 'Brand', 'Strategist']);
   assert.deepEqual(PRIORITIES.map((p) => p.value), ['Critical', 'High', 'Standard', 'Low']);
+  assert.deepEqual(SOURCE_TYPES.map((t) => t.value), ['Media', 'Social Media', 'Non-Media Listings']);
   assert.deepEqual(SENTIMENTS, ['Positive', 'Neutral', 'Negative', 'Unclear']);
   assert.ok(CHANNELS.includes('Hacker News') && CHANNELS.includes('Social'));
   for (const t of [...CATEGORIES, ...PRIORITIES]) assert.ok(t.definition.length > 20, `${t.value} has a definition`);
@@ -50,6 +51,7 @@ test('anything outside the allowed lists is invalid', () => {
   assert.equal(bad({ category: 'Press mention' }).ok, false);
   assert.equal(bad({ priority: 'Routine' }).ok, false);
   assert.equal(bad({ sentiment: 'Happy' }).ok, false);
+  assert.equal(bad({ source_type: 'Blog' }).ok, false);
   assert.equal(bad({ channel: 'Podcast2' }).ok, false);
   assert.equal(bad({ matched_rule_ids: ['MR-004'] }).ok, false, 'an inactive rule is not allowed');
   assert.equal(bad({ matched_rule_ids: ['MR-099'] }).ok, false);
@@ -106,6 +108,7 @@ test('the request has the spec shape: tool, no sampling parameters, user message
   assert.ok(payload.active_rules.every((r) => r.id && r.trigger && r.default_priority));
   assert.ok(!payload.active_rules.some((r) => r.id === 'MR-004'), 'inactive rules are not shown to the model');
   assert.equal(payload.taxonomy.categories.length, 4);
+  assert.equal(payload.taxonomy.source_types.length, 3);
   assert.equal(payload.candidate_entities[0].name, 'Sedifly');
 });
 
@@ -114,6 +117,7 @@ test('the tool schema restricts values to the lists in this run', () => {
   const p = tool.input_schema.properties;
   assert.deepEqual(p.category.enum, ['General', 'Event', 'Brand', 'Strategist']);
   assert.deepEqual(p.priority.enum, ['Critical', 'High', 'Standard', 'Low']);
+  assert.deepEqual(p.source_type.enum, ['Media', 'Social Media', 'Non-Media Listings']);
   assert.ok(p.entity.enum.includes('Sedifly') && p.entity.enum.includes(null));
   assert.ok(p.matched_rule_ids.items.enum.includes('MR-001') && !p.matched_rule_ids.items.enum.includes('MR-004'));
   assert.equal(tool.input_schema.additionalProperties, false);

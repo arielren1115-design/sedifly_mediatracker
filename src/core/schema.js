@@ -2,7 +2,7 @@
 
 /** @type {string[]} */
 export const COVERAGE_HEADERS = [
-  'Coverage ID', 'Detected at', 'Published at', 'Entity', 'Channel', 'Outlet', 'Outlet tier',
+  'Coverage ID', 'Detected at', 'Published at', 'Entity', 'Channel', 'Source type', 'Outlet', 'Outlet tier',
   'Title', 'URL', 'Normalised URL', 'Excerpt', 'Category', 'Priority', 'Sentiment',
   'Rules matched', 'Instant alert sent', 'Archive status', 'Archive link', 'Found in',
   'Verification', 'Source route', 'Gmail message ID', 'Classifier confidence', 'Logged by',
@@ -38,6 +38,9 @@ export const DATETIME_FORMATS = {
 };
 
 export const REVIEW_DECISIONS = ['Approve', 'Reject'];
+
+/** Source type values (owners, 2026-10-25). Kept here for the dropdown; definitions live in taxonomy.js. */
+export const SOURCE_TYPE_VALUES = ['Media', 'Social Media', 'Non-Media Listings'];
 
 export const LABELS = [
   'Monitoring/Automated',

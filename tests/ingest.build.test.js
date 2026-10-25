@@ -131,3 +131,16 @@ test('the same article arriving through a second source is merged into the exist
   assert.equal(forbes()[col('Notes')], humanNote, 'human cells are untouched');
   assert.deepEqual(labelsOf(env, 'fw9'), ['L_Monitoring/Processed']);
 });
+
+test('a sheet with its header row removed fails with a plain message, touches no mail, and setup repairs it', async () => {
+  const { env, sb, add } = await ready();
+  await add('f1', 'team_forward_link_only', ['Monitoring/Team Forward']);
+  env.sheets.x.Coverage.rows.length = 0; // someone cleared the whole tab, header row included
+  assert.throws(() => run(sb, 'runIngest()'), /Coverage tab is missing the columns Coverage ID.*Run setup\(\)/);
+  assert.deepEqual(labelsOf(env, 'f1'), ['L_Monitoring/Team Forward'], 'the message waits for the next run');
+  run(sb, 'setup()');
+  assert.equal(env.sheets.x.Coverage.rows[0][0], 'Coverage ID');
+  const s = run(sb, 'runIngest()');
+  assert.equal(s.status, 'OK');
+  assert.deepEqual(labelsOf(env, 'f1'), ['L_Monitoring/Processed']);
+});

@@ -1,5 +1,5 @@
 // Validates the classifier's tool output against the allowed lists (BUILD_SPEC 9.3).
-import { CATEGORIES, PRIORITIES, SENTIMENTS, CHANNELS } from './taxonomy.js';
+import { CATEGORIES, PRIORITIES, SENTIMENTS, CHANNELS, SOURCE_TYPES } from './taxonomy.js';
 
 const trimWords = (text, max) => {
   const words = text.trim().split(/\s+/);
@@ -30,6 +30,7 @@ export function validateClassification(output, { entityNames, ruleIds }) {
   if (typeof o.confidence !== 'number' || !(o.confidence >= 0 && o.confidence <= 1)) errors.push('confidence must be a number from 0 to 1');
   for (const k of ['outlet', 'title', 'summary', 'reasoning']) isString(k);
   oneOf('channel', CHANNELS);
+  oneOf('source_type', SOURCE_TYPES.map((t) => t.value));
   oneOf('category', CATEGORIES.map((c) => c.value));
   oneOf('priority', PRIORITIES.map((p) => p.value));
   oneOf('sentiment', SENTIMENTS);

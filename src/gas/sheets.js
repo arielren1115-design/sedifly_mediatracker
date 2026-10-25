@@ -1,4 +1,4 @@
-import { missingHeaders, TABS, REVIEW_DECISIONS, DATETIME_FORMATS } from '../core/schema.js';
+import { missingHeaders, TABS, REVIEW_DECISIONS, DATETIME_FORMATS, SOURCE_TYPE_VALUES } from '../core/schema.js';
 
 /**
  * Create a tab if needed and append any missing headers. Never deletes or reorders columns.
@@ -47,6 +47,12 @@ export function ensureAllTabs(ss) {
   const col = columnByHeader(review, 'Decision');
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(REVIEW_DECISIONS, true).setAllowInvalid(false).build();
   review.getRange(2, col, review.getMaxRows() - 1, 1).setDataValidation(rule);
+
+  const sourceRule = SpreadsheetApp.newDataValidation().requireValueInList(SOURCE_TYPE_VALUES, true).setAllowInvalid(false).build();
+  for (const name of ['Coverage', 'Review Queue']) {
+    const sheet = ss.getSheetByName(name);
+    sheet.getRange(2, columnByHeader(sheet, 'Source type'), sheet.getMaxRows() - 1, 1).setDataValidation(sourceRule);
+  }
 
   const blank = ss.getSheetByName('Sheet1');
   if (blank && ss.getSheets().length > 1 && blank.getLastRow() === 0 && blank.getLastColumn() === 0) ss.deleteSheet(blank);
@@ -122,4 +128,21 @@ export function readIndexRows(ss) {
     }));
   }
   return out;
+}
+
+/**
+ * Fails with a plain message if a tab or any of its columns is missing, before any work is done.
+ * @param {object} ss spreadsheet
+ */
+export function assertTabsReady(ss) {
+  const problems = [];
+  for (const [name, headers] of Object.entries(TABS)) {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) { problems.push(`the ${name} tab is missing`); continue; }
+    const last = sheet.getLastColumn();
+    const existing = last > 0 ? sheet.getRange(1, 1, 1, last).getValues()[0] : [];
+    const missing = missingHeaders(existing, headers);
+    if (missing.length) problems.push(`the ${name} tab is missing the column${missing.length > 1 ? 's' : ''} ${missing.join(', ')}`);
+  }
+  if (problems.length) throw new Error(`The sheet is not set up: ${problems.join('; ')}. Run setup() to restore it.`);
 }
