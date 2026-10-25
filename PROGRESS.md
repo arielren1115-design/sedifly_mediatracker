@@ -121,3 +121,24 @@ DoD: (1) URL normalisation table test with at least 25 cases passes. (2) The sam
 Still needed to finish DoD 3 and wire the engine in: the answers above, plus the Monitored Entities tab pasted into the DEV PR Tracker sheet (the engine reads the live tab, title row included).
 
 **Monitoring Rules** has `Index` 1 to 14, `Route` (Instant alert, Digest, Archive only), Trigger, Examples, Required system action, Human action, Target timing and Notes. There are no `MR-xxx` IDs and no Active column, so the spec's live rule list (MR-003, MR-005, ...) cannot be mapped to these rows without guessing. Not needed for M2, but needed before M3 (prompt) and M5 (routing). Needed from Ben: the MR-xxx IDs for each row, which rows are live in v1, and the taxonomy (Category and Priority values).
+
+### Monitoring Rules, as seen in Ariel's screenshot (2026-10-25)
+Columns: Index (MR-xxx), Active, Applies to category, Default priority, Route, Trigger, Examples, Required system action, Human action, Target timing, Notes / guardrails. MR-001 was cut off in the screenshot and is not seen.
+
+| Rules | Active | Applies to | Default priority | Route |
+|---|---|---|---|---|
+| MR-002, MR-005 | Yes | Any | Critical | Instant alert |
+| MR-003 | Yes | Any | High | Instant alert |
+| MR-004 | **No** | Event | High | Instant alert |
+| MR-006 | Yes | Brand | Standard | Digest |
+| MR-007 | Yes | Strategist | Standard | Digest |
+| MR-008 | Yes | Event | Standard | Digest |
+| MR-009 | Yes | Any | Standard | Digest |
+| MR-010 to MR-013 | Yes | Any | Low | Archive only |
+| MR-014 | Yes | General | Low | Archive only |
+
+Open questions for M3 and M5 (not guessed):
+1. **Priority vocabulary.** The sheet uses Critical, High, Standard, Low. Ben's reply said Critical, High and Routine. Which list is the real taxonomy?
+2. **Which rules are live.** Spec 2.1 lists MR-003, 005, 007 to 016 as live (MR-006 partly, MR-004 not built). The sheet has Yes for MR-002 (not in the spec list) and MR-006 (spec says partly), has no MR-015 or MR-016, and MR-001 is unseen. Proposal: the sheet's Active column is the source of truth and the spec list is updated to match.
+3. Column names differ from spec 6.4 (Index for Rule ID, Route for Action, Default priority for Priority). The loader will use the sheet's names.
+4. A CSV export of the full tab is still needed for the classifier prompt and routing tests (the screenshot truncates long text).
