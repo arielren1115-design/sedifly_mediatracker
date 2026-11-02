@@ -4,6 +4,9 @@ import { allocateCoverageIds } from '../gas/coverageIds.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { createIndex } from '../core/dedupe.js';
 import { planReviewSync, approvedCoverageRow } from '../core/reviewSync.js';
+import { decideAlert, classificationFromRow } from '../core/routing.js';
+import { alertForRow } from '../gas/alerts.js';
+import { loadActiveRules } from '../gas/rules.js';
 
 /**
  * Copies Approved rows of the Review Queue into Coverage and stamps Synced at. Rejected rows are only stamped (kept for accuracy metrics).
@@ -36,10 +39,23 @@ export function runReviewSync() {
     const details = [];
     if (plan.approve.length) {
       const ids = allocateCoverageIds(plan.approve.length);
+      let rules = null;
       plan.approve.forEach((a, i) => {
-        appendObjects(coverage, [approvedCoverageRow(a.values, { coverageId: ids[i], now, norm: a.norm })]);
+        const newRow = approvedCoverageRow(a.values, { coverageId: ids[i], now, norm: a.norm });
+        const coverageRow = appendObjects(coverage, [newRow]);
         stamp(a.rowNumber);
-        details.push({ row: a.rowNumber, outcome: 'approved', coverageId: ids[i] });
+        const detail = { row: a.rowNumber, outcome: 'approved', coverageId: ids[i] };
+        // Routing runs on approval (spec 6.2). A row already alerted as UNCONFIRMED carries its send time across, so it is not alerted again.
+        if (newRow['Instant alert sent'] === undefined) {
+          try {
+            rules = rules || loadActiveRules();
+            const due = decideAlert({ rules, classification: classificationFromRow(newRow), unconfirmed: false });
+            if (due.send && alertForRow(ss, { sheet: 'Coverage', rowNumber: coverageRow, coverageId: ids[i], reasons: due.reasons })) detail.alert = 'sent';
+          } catch (e) {
+            detail.alert = `not checked: ${String(e && e.message || e)}`;
+          }
+        }
+        details.push(detail);
       });
     }
     for (const n of plan.alreadyThere) { stamp(n); details.push({ row: n, outcome: 'already in Coverage' }); }

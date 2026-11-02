@@ -241,7 +241,7 @@ DoD: disabling the ingest trigger produces an ops email within 1 h (internal) an
 6. Forced error: temporarily rename a header in the Coverage tab and wait for a run. Expect a FAILED Run Log row and one email; restore the header or run `setup()`.
 
 ## Consolidated spec changes
-See `SPEC_CHANGES.md` (32 items with section, current text, proposal, reason and status).
+See `SPEC_CHANGES.md` (45 items with section, current text, proposal, reason and status).
 
 ### 2026-10-25: F5Bot live check passed
 The F5Bot alert moved from `Monitoring/Automated` to `Monitoring/Processed` in DEV, so all four sources (Google Alerts, Talkwalker, F5Bot, team forwards) are live-tested. M1 is closed.
@@ -270,3 +270,25 @@ The F5Bot alert moved from `Monitoring/Automated` to `Monitoring/Processed` in D
 2. Sender tracking and sheet simplification need an owner decision before code (see SPEC_CHANGES.md items 33 and 34).
 3. The 4 November import needs the Old tracker to Book of Truth column mapping from Ben (`fixtures/config/old_tracker_mapping.csv`, still a `TODO(Ben)` in the spec) and a decision on which of the old tracker rows are imported as `Needs verification`.
 4. M9 now has two guides instead of one.
+
+
+## M5: Routing, alerts, digest  (status: code complete 2026-11-02; live DoD check pending)
+
+DoD: a seeded Critical item emails within 15 minutes of arriving in Gmail; the UNCONFIRMED path works; no duplicate alerts on rerun; the digest is sent on a zero item day.
+
+### Built
+- **Routing** (`core/routing.js`): an instant alert is due when a matched active rule has Route `Instant alert` (MR-001, 002, 003, 005; MR-004 is inactive), or Priority is Critical, or the classifier's `critical_signal` is true. An item the classifier says is unrelated never alerts. Owner confirmed on 2026-11-02 that the sheet's `Route` column is the spec's `Action`, and that there are no per rule recipients in v1.
+- **Alert email** (`core/alertEmail.js`, `gas/alerts.js`): subject `[Sedifly Media] <Priority>: <Entity> in <Outlet>`, `UNCONFIRMED ` prefix for review items; body has title, URL, outlet, published date, sentiment, summary, matched rules, excerpt, a link to the exact sheet row, the Coverage ID, a "why you are getting this" line, and the negative sentiment line when it applies. Sent only to `ALERT_RECIPIENTS` (`ALERT_RECIPIENTS_BLIND` in BLIND mode). The send time is written to `Instant alert sent`, and a row already stamped is never alerted again.
+- **Alerts happen at ingest**, right after the row is written, so they are not tied to the 5 minute review sync. The alert fires even when the item goes to the Review Queue (UNCONFIRMED). Ambiguous people matches are now also classified so a possible Critical item is alerted rather than waiting unseen; they still go to review.
+- **If the mail fails** (for example no recipients set), the alert is queued in the Script Property `PENDING_ALERTS`, the run is marked PARTIAL (so the health check notices), and the next ingest retries it first. A row is stamped only after the mail is handed to Gmail.
+- **Approval routing**: when Review sync copies an approved row into Coverage, an alert is sent if its rules or priority call for one and it was not alerted before. A row already alerted as UNCONFIRMED carries its send time across, so it is not alerted twice.
+- **Daily digest** (`dailyDigest`, 09:00 SGT, to `OPS_RECIPIENTS` plus the alert recipients, each address once): new rows in the last 24 hours by channel, instant alerts sent, Review Queue items waiting (and approved rows stuck for missing fields), Screenshot needed and Save by hand counts, skipped alert results, failed and partial runs, last successful run, and a list of up to 25 new items, highest priority first. Always sent, including on a zero day. A second run within 12 hours is skipped so a retried trigger cannot double send. `digestNow()` (run by hand) sends it immediately.
+- Tests: 259 passing, including the built bundle for alerts (send once, rerun sends nothing, UNCONFIRMED, queued then retried, BLIND recipients, approval) and the digest.
+
+### Live DoD check (needs Ariel)
+The classifier needs the Anthropic key, so a real Critical item cannot be classified in DEV yet. Until then the same code path is shown by approving a review row:
+1. Push is done by me. In the Apps Script editor run `setup()` once (clears stray dropdowns).
+2. In the Review Queue tab add a row by hand: any Title and URL (a link not already in the sheet), Entity `Sedifly`, Category `Brand`, Priority `Critical`, Rules matched `MR-001`, Decision `Approve`, and a Gmail message ID of `manual-1`.
+3. Within 5 minutes the row appears in Coverage with a new ID and an alert email arrives "[Sedifly Media] Critical: Sedifly in ..." with a working link to the row. `Instant alert sent` is filled in. Wait another 10 minutes: no second email.
+4. Run `digestNow` from the editor: you should get the digest at ariel@sedifly.com with at least that row listed.
+5. Once the Anthropic key is in: a seeded Critical email (a forward about Sedifly with serious wording) should alert within 15 minutes, and a low confidence one should arrive as UNCONFIRMED.

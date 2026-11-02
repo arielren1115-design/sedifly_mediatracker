@@ -3,7 +3,7 @@
 import { setup } from './jobs/setup.js';
 import { runIngest } from './jobs/ingest.js';
 import { runReviewSync } from './jobs/reviewSync.js';
-import { dailyDigest } from './jobs/digest.js';
+import { dailyDigest, digestNow } from './jobs/digest.js';
 import { runBackfill } from './jobs/backfill.js';
 import { compareBlindRun, mergeBlindRun } from './jobs/blind.js';
 import { heartbeatCheck } from './gas/heartbeat.js';
@@ -14,6 +14,7 @@ const guardedIngest = guarded('runIngest', runIngest);
 const guardedReviewSync = guarded('runReviewSync', runReviewSync);
 const guardedHeartbeat = guarded('heartbeatCheck', heartbeatCheck);
 const guardedDigest = guarded('dailyDigest', dailyDigest);
+const guardedDigestNow = guarded('digestNow', digestNow);
 const guardedBackfill = guarded('runBackfill', runBackfill);
 
 export {
@@ -22,5 +23,6 @@ export {
   guardedReviewSync as runReviewSync,
   guardedHeartbeat as heartbeatCheck,
   guardedDigest as dailyDigest,
+  guardedDigestNow as digestNow,
   guardedBackfill as runBackfill,
 };

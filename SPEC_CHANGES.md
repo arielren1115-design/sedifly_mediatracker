@@ -62,7 +62,7 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 27 | 13 | Ping `HEARTBEAT_PING_URL` after a successful run | Also ping `<url>/fail` when `runIngest` throws, so the external service alerts at once instead of after its grace period | healthchecks.io supports an explicit failure signal | Needs decision |
 | 28 | 13 | Internal alert after 45 minutes without success | Same. Before the first ever success the clock starts at the first hourly check. A mail that fails to send is retried next hour. State is kept in the Script Property `HEARTBEAT_STATE` | Covers a trigger that never ran | Technical |
 | 29 | 13 | Error email per function per hour | Same, kept in `ERROR_EMAIL_AT`. Every failure still writes a FAILED Run Log row. Ops mail only goes to `OPS_RECIPIENTS` | Matches the spec | Technical |
-| 30 | 6.3 and 15 | Run Log row per run | A row is written on every ingest run, including idle ones (about 288 a day). Revisit if it gets noisy | Gives an audit trail | Needs decision |
+| 30 | 6.3 and 15 | Run Log row per run | Replaced by item 45 (idle runs logged hourly) | | Superseded |
 | 31 | 14 | `setup()` creates tabs, labels, triggers | `setup()` also removes an empty `Sheet1`, sets the sheet time zone to Asia/Singapore, applies date formats, adds dropdowns and recreates its own four triggers | Needed for a clean sheet | Technical |
 | 32 | 5.1 | Script Properties as listed | Script managed keys added: `NEXT_COVERAGE_ID`, `LAST_SUCCESS_AT`, `CLASSIFIER_FAILS`, `HEARTBEAT_STATE`, `ERROR_EMAIL_AT` | State that survives between runs | Technical |
 
@@ -76,7 +76,20 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 36 | 19 | M9 produces one `HANDOVER.md` | Two guides: a User Guide for marketing and an Internal Maintenance Guide for developers | Owner decision | Decided |
 | 37 | 7.1 and 20 | Central mailbox is media@sedifly.com | The central address is still open: DEV uses `ariel+mediatest@sedifly.com`, and `pr@sedifly.com` is under consideration after Ariel's sender tracking test | Owner decision pending | Needs decision (Ariel) |
 
-## H. Risks to record, no spec change needed
+## H. Added with M5 (2026-11-02)
+
+| # | Section | Spec says | Proposed change | Why | Status |
+|---|---|---|---|---|---|
+| 38 | 12 | An alert is due when a matched rule has `Action = Instant Alert`, and rules can carry `Recipients` | Use the rules sheet's `Route = Instant alert` as the trigger. No per rule recipients in v1; everything goes to `ALERT_RECIPIENTS` | The sheet has no Action or Recipients column | Decided (Ariel, 2026-11-02) |
+| 39 | 9.1 and 12 | Ambiguous matches go to review | Ambiguous matches are also classified, only so a possible Critical item can send an UNCONFIRMED alert. They still go to review | A1 is absolute | Needs decision |
+| 40 | 12 | Alert and stamp `Instant alert sent` | The mail is sent after the row is written. A failed send is queued (`PENDING_ALERTS`), retried at the next ingest, and makes that run PARTIAL | A crash or mail outage must not lose an alert | Technical |
+| 41 | 6.2 and 12 | Approval runs archive and routing | Approval runs routing now (alert if due and not already alerted); archive waits for M4 | M4 paused | Technical |
+| 42 | 12 | Digest contents listed | Digest also lists up to 25 new items, highest priority first, and the count of instant alerts sent. Rules MR-006 to MR-009 say "include in digest" | Gives the digest items to show | Needs decision |
+| 43 | 12 and 14 | Daily trigger sends the digest | A second send within 12 hours is skipped. A new hand run function `digestNow()` sends immediately | Safe retries and easy testing | Technical |
+| 44 | 5.1 | Script Properties as listed | More script managed keys: `PENDING_ALERTS`, `LAST_DIGEST_AT`, `LAST_IDLE_LOG_AT` | State that survives between runs | Technical |
+| 45 | 6.3 | Run Log row per run | Idle ingest runs are logged once an hour, runs that find mail every time (replaces item 30) | The log had 4,222 rows in two weeks | Decided (Ariel, 2026-11-02) |
+
+## I. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.
 - F5Bot pauses a keyword that fires too often ("daily limit, paused for 24 hours"). Paused keywords send no mail, so mentions are not seen. Surface this in the digest in M5.

@@ -402,3 +402,65 @@ test('a classified alert that is not about a monitored entity is skipped and log
   assert.ok(s.skippedNoEntity >= 1);
   assert.match(JSON.stringify(s.details), /not about a monitored entity/);
 });
+
+// ---- instant alerts (M5) ----
+function alertWorld() {
+  const sent = [];
+  const sendAlert = (info) => { sent.push(info); return true; };
+  return { sent, sendAlert };
+}
+
+test('a Critical classification writes the row, then sends one alert with its row details', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer({ priority: 'Critical', matched_rule_ids: ['MR-001'], confidence: 0.9 }) }));
+  const a = alertWorld();
+  const s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx, sendAlert: a.sendAlert }));
+  assert.equal(s.alerts, a.sent.length);
+  assert.ok(a.sent.length >= 1);
+  assert.equal(a.sent[0].sheet, 'Coverage');
+  assert.equal(a.sent[0].unconfirmed, false);
+  assert.match(a.sent[0].coverageId, /^COV-/);
+  assert.equal(a.sent[0].row.Priority, 'Critical');
+  assert.match(a.sent[0].reasons.join(' '), /MR-001/);
+});
+
+test('a Critical item with low confidence still alerts, marked UNCONFIRMED, from the Review Queue', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer({ priority: 'Critical', confidence: 0.3 }) }));
+  const a = alertWorld();
+  processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx, sendAlert: a.sendAlert }));
+  assert.equal(w.coverage.length, 0);
+  assert.equal(a.sent[0].sheet, 'Review Queue');
+  assert.equal(a.sent[0].unconfirmed, true);
+  assert.equal(a.sent[0].coverageId, '');
+});
+
+test('an ambiguous people match is classified so a Critical item is alerted, and it still goes to review', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer({ priority: 'Critical' }) }));
+  const a = alertWorld();
+  processBatch(w.deps({ ...only(w, 'ga'), classifier: k.ctx, sendAlert: a.sendAlert }));
+  assert.ok(w.reviewRows.some((r) => r['Review reason'] === 'Ambiguous entity match'));
+  assert.ok(a.sent.some((x) => x.unconfirmed && x.sheet === 'Review Queue'));
+});
+
+test('routine items, and runs without a classifier, send nothing', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer() }));
+  const a = alertWorld();
+  processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx, sendAlert: a.sendAlert }));
+  assert.equal(a.sent.length, 0);
+  const w2 = await world();
+  processBatch(w2.deps({ ...only(w2, 'tw'), sendAlert: a.sendAlert }));
+  assert.equal(a.sent.length, 0);
+});
+
+test('an alert that cannot be sent makes the run PARTIAL, loses no row, and is counted', async () => {
+  const w = await world();
+  const k = classifier(() => ({ kind: 'tool', input: answer({ priority: 'Critical' }) }));
+  const s = processBatch(w.deps({ ...only(w, 'tw'), classifier: k.ctx, sendAlert: () => { throw new Error('mail down'); } }));
+  assert.ok(s.alertFailures >= 1);
+  assert.equal(s.status, 'PARTIAL');
+  assert.ok(w.coverage.length >= 1);
+  assert.deepEqual(w.processed, ['tw']);
+});

@@ -5,6 +5,7 @@ import { normalizeUrl } from './normalizeUrl.js';
 import { mergeList, isRedditCommentUrl } from './dedupe.js';
 import { entityGate } from './entityGate.js';
 import { classifyItem, DeferError } from './classifyStep.js';
+import { decideAlert } from './routing.js';
 
 /**
  * @param {object} deps
@@ -19,6 +20,7 @@ import { classifyItem, DeferError } from './classifyStep.js';
  * @param {(entry: object, values: object) => void} deps.updateExisting writes Source route, Found in and Last updated
  * @param {(id:string, sourceLabel:string) => void} deps.markProcessed
  * @param {(id:string, sourceLabel:string, reason:string) => void} deps.markReview
+ * @param {(info: object) => boolean} [deps.sendAlert] sends the instant alert for a written row (see gas/alerts.js). Never throws for a mail problem: it queues a retry
  * @param {object|null} [deps.classifier] classifier context (see classifyStep.js). Absent: rows are written unclassified
  * @param {() => boolean} deps.shouldStop true once the time budget is spent
  * @param {() => Date} deps.now
@@ -26,7 +28,7 @@ import { classifyItem, DeferError } from './classifyStep.js';
  */
 export function processBatch(deps) {
   if (!Array.isArray(deps.entities) || !deps.entities.length) throw new Error('No monitored entities were loaded, so nothing can be matched');
-  const s = { messagesSeen: 0, itemsParsed: 0, newRows: 0, duplicates: 0, toReview: 0, skippedNoEntity: 0, errors: 0, deferred: 0, classified: 0, skippedForBudget: 0, details: [] };
+  const s = { messagesSeen: 0, itemsParsed: 0, newRows: 0, duplicates: 0, toReview: 0, skippedNoEntity: 0, errors: 0, deferred: 0, classified: 0, alerts: 0, alertFailures: 0, skippedForBudget: 0, details: [] };
   for (const [index, { id, sourceLabel }] of deps.candidates.entries()) {
     if (deps.shouldStop()) { s.skippedForBudget = deps.candidates.length - index; break; }
     s.messagesSeen++;
@@ -50,7 +52,7 @@ export function processBatch(deps) {
         continue;
       }
       s.itemsParsed += items.length;
-      const counts = { newRows: 0, duplicates: 0, reviewRows: 0, classified: 0, skipped: [], syndicated: [], entities: new Set() };
+      const counts = { newRows: 0, duplicates: 0, reviewRows: 0, classified: 0, alerts: 0, alertFailures: 0, skipped: [], syndicated: [], entities: new Set() };
       try {
         for (const item of items) handleItem(deps, item, counts);
       } finally {
@@ -58,10 +60,14 @@ export function processBatch(deps) {
         s.duplicates += counts.duplicates;
         s.toReview += counts.reviewRows;
         s.classified += counts.classified;
+        s.alerts += counts.alerts;
+        s.alertFailures += counts.alertFailures;
         s.skippedNoEntity += counts.skipped.length;
       }
       deps.markProcessed(id, sourceLabel);
       const detail = { id, outcome: 'processed', items: items.length, newRows: counts.newRows, duplicates: counts.duplicates, reviewRows: counts.reviewRows, entities: [...counts.entities] };
+      if (counts.alerts) detail.alerts = counts.alerts;
+      if (counts.alertFailures) detail.alertFailures = counts.alertFailures;
       if (counts.skipped.length) detail.skipped = counts.skipped;
       if (counts.syndicated.length) detail.syndicated = counts.syndicated.slice(0, 5);
       if (counts.syndicated.length > 5) detail.syndicatedTotal = counts.syndicated.length;
@@ -78,7 +84,7 @@ export function processBatch(deps) {
     }
   }
   const done = s.details.filter((d) => d.outcome === 'processed' || d.outcome === 'review').length;
-  const bad = s.errors + s.deferred;
+  const bad = s.errors + s.deferred + s.alertFailures; // an alert that could not be sent is not a clean run
   s.status = bad === 0 ? 'OK' : done > 0 ? 'PARTIAL' : 'FAILED';
   return s;
 }
@@ -105,11 +111,25 @@ function handleItem(deps, item, counts) {
   }
 
   const entry = { url: item.url || '', normalisedUrl: norm || '', title: item.title || '', detectedAt: now, sourceRoute: item.route, foundIn: 'Tool', gmailMessageId: item.gmailMessageId };
+  // Spec 12: an instant alert is due even when the item goes to review (then it is UNCONFIRMED). Needs a classification to know.
+  const alertIfDue = (sheet, rowNumber, coverageId, row, classification, unconfirmed) => {
+    if (!deps.sendAlert || !classification || !deps.classifier) return;
+    const due = decideAlert({ rules: deps.classifier.rules, classification, unconfirmed });
+    if (!due.send) return;
+    try {
+      if (deps.sendAlert({ sheet, rowNumber, coverageId, row, summary: classification.summary, unconfirmed, reasons: due.reasons })) counts.alerts++;
+      else counts.alertFailures++;
+    } catch (e) {
+      counts.alertFailures++;
+    }
+  };
   const addReview = (reason, entityName, classification) => {
     const row = { ...toCoverageRow(item, { now, normalisedUrl: norm, classification, threshold: deps.classifier && deps.classifier.threshold }), 'Review reason': reason, Verification: 'Needs verification' };
-    if (entityName && !row.Entity) row.Entity = entityName;
-    index.add({ ...entry, sheet: 'Review Queue', rowNumber: deps.appendReviewRow(row), coverageId: '' });
+    if (entityName) row.Entity = entityName; // the gate's candidate wins over the model's guess for an ambiguous match
+    const rowNumber = deps.appendReviewRow(row);
+    index.add({ ...entry, sheet: 'Review Queue', rowNumber, coverageId: '' });
     counts.reviewRows++;
+    alertIfDue('Review Queue', rowNumber, '', row, classification, true);
   };
 
   // Spec 8.2, owner decision A (2026-10-25): the same headline on another site is a syndicated copy. It adds no row, it is counted.
@@ -131,7 +151,17 @@ function handleItem(deps, item, counts) {
     counts.skipped.push({ url: item.url, route: item.route, reason: 'No monitored entity matched' });
     return;
   }
-  if (gate.outcome === 'ambiguous') { addReview('Ambiguous entity match', gate.names.length === 1 ? gate.names[0] : ''); return; }
+  if (gate.outcome === 'ambiguous') {
+    // Still classified, so a possible Critical item is alerted (UNCONFIRMED) instead of waiting unseen for a reviewer.
+    let guess = null;
+    if (deps.classifier) {
+      if (deps.shouldStop()) throw new DeferError('Time budget spent before classification');
+      guess = classifyItem(deps.classifier, item, { candidates: gate.candidates, route: item.route, messageId: item.gmailMessageId }).classification;
+      counts.classified++;
+    }
+    addReview('Ambiguous entity match', gate.names.length === 1 ? gate.names[0] : '', guess);
+    return;
+  }
 
   let classification = null;
   if (deps.classifier) {
@@ -148,6 +178,8 @@ function handleItem(deps, item, counts) {
 
   const coverageId = deps.allocateIds(1)[0];
   const row = toCoverageRow(item, { coverageId, now, normalisedUrl: norm, classification, threshold: deps.classifier && deps.classifier.threshold });
-  index.add({ ...entry, sheet: 'Coverage', rowNumber: deps.appendCoverageRow(row), coverageId });
+  const rowNumber = deps.appendCoverageRow(row);
+  index.add({ ...entry, sheet: 'Coverage', rowNumber, coverageId });
   counts.newRows++;
+  alertIfDue('Coverage', rowNumber, coverageId, row, classification, false);
 }

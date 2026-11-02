@@ -6,6 +6,7 @@ import { loadMonitoredEntities } from '../gas/entities.js';
 import { classifierConfigured, buildClassifier } from '../gas/classifier.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { pingHeartbeat } from '../gas/ping.js';
+import { createAlertSender, retryPendingAlerts } from '../gas/alerts.js';
 import { processBatch } from '../core/ingestRun.js';
 import { createIndex } from '../core/dedupe.js';
 
@@ -28,6 +29,7 @@ export function runIngest() {
     const budgetMs = Number(getProp('RUN_TIME_BUDGET_MS'));
     const ss = SpreadsheetApp.openById(targetSpreadsheetId());
     assertTabsReady(ss);
+    retryPendingAlerts(ss);
     const labelIds = labelIdsByName();
     const candidates = listCandidates(labelIds, Number(getProp('BATCH_MAX_MESSAGES')));
     let summary = { messagesSeen: 0, details: [], status: 'OK', errors: 0 };
@@ -42,6 +44,7 @@ export function runIngest() {
         getMessage,
         entities,
         classifier: classify ? buildClassifier(entities) : null,
+        sendAlert: createAlertSender(ss),
         index: createIndex(readIndexRows(ss)),
         allocateIds: allocateCoverageIds,
         appendCoverageRow: (row) => appendObjects(coverage, [row]),

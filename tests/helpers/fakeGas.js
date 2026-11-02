@@ -11,6 +11,7 @@ export function fakeSheet(name) {
   const s = {
     name, frozen: 0, rows, formats: {},
     getName: () => name,
+    getSheetId: () => 100 + name.length,
     getLastColumn: () => rows.reduce((m, r) => Math.max(m, r.length), 0),
     getLastRow: () => rows.length,
     getMaxRows: () => 1000,
@@ -51,6 +52,7 @@ export function makeEnv(props) {
       insertSheet: (n) => (map[n] = fakeSheet(n)),
       getSheets: () => Object.values(map),
       deleteSheet: (sh) => { delete map[sh.name]; },
+      getUrl: () => `https://docs.google.com/spreadsheets/d/${id}/edit`,
       getSpreadsheetTimeZone: () => state.tz[id] || 'America/Los_Angeles',
       setSpreadsheetTimeZone: (tz) => { state.tz[id] = tz; },
     };
