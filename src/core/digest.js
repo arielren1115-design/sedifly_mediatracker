@@ -1,4 +1,4 @@
-// The daily digest (BUILD_SPEC 12). Pure: rows in, subject and body out. Always produced, even on a zero day.
+// The daily digest (BUILD_SPEC 12). Pure: rows in, subject and body out. The job sends it only when `stats.hasChanges` (owner decision 2026-11-02).
 
 const DAY_MS = 24 * 3600 * 1000;
 const PRIORITY_ORDER = ['Critical', 'High', 'Standard', 'Low'];
@@ -30,7 +30,11 @@ export function buildDigest({ nowMs, coverage, review, runLog, lastSuccessIso, s
   const runs = runLog.filter((r) => ms(r['Started at']) >= since);
   const sum = (h) => runs.reduce((t, r) => t + (Number(r[h]) || 0), 0);
   const status = (s) => runs.filter((r) => r['Status (OK / PARTIAL / FAILED)'] === s).length;
-  const stats = { newRows: fresh.length, byChannel, openReview, alerts, skipped: sum('Skipped (no entity)'), failed: status('FAILED'), partial: status('PARTIAL') };
+  const newReview = review.filter((r) => ms(r['Detected at']) >= since).length;
+  const decided = review.filter((r) => ms(r['Synced at']) >= since).length;
+  const stats = { newReview, decided, newRows: fresh.length, byChannel, openReview, alerts, skipped: sum('Skipped (no entity)'), failed: status('FAILED'), partial: status('PARTIAL') };
+  // Something new or changed: new rows, new review items, alerts, review decisions processed, or a problem run. Waiting items and skipped alert results alone do not count.
+  stats.hasChanges = stats.newRows + newReview + decided + alerts + stats.failed + stats.partial > 0;
 
   const lines = [`Media coverage digest for the 24 hours to ${sgt(nowMs)}.`, ''];
   lines.push(`New coverage rows: ${fresh.length}`);

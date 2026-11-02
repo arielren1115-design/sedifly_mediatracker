@@ -129,7 +129,7 @@ test('the same article from another source adds the route to the existing row an
   assert.equal(w.coverage.length, 2, 'forbes and campus.sg only');
   assert.equal(s.newRows, 0);
   assert.equal(s.duplicates, 1);
-  assert.deepEqual(w.updates, [{ id: 'COV-000001', sheet: 'Coverage', values: { 'Source route': 'Talkwalker, Team forward', 'Found in': 'Tool', 'Last updated': new Date('2026-10-18T10:00:00.000Z') } }]);
+  assert.deepEqual(w.updates, [{ id: 'COV-000001', sheet: 'Coverage', values: { 'Source route': 'Talkwalker, Team forward', 'Found in': 'Tool', 'Submitted by': 'team.member@sedifly.com', 'Last updated': new Date('2026-10-18T10:00:00.000Z') } }]);
   assert.ok(w.processed.includes('fw2'));
 });
 
@@ -463,4 +463,26 @@ test('an alert that cannot be sent makes the run PARTIAL, loses no row, and is c
   assert.equal(s.status, 'PARTIAL');
   assert.ok(w.coverage.length >= 1);
   assert.deepEqual(w.processed, ['tw']);
+});
+
+// ---- sender tracking ----
+test('a team forward records who sent it; an automatic alert has no submitter', async () => {
+  const w = await world();
+  processBatch(w.deps({ ...only(w, 'fwd', 'tw') }));
+  const forwarded = w.coverage.filter((r) => r['Source route'] === 'Team forward');
+  assert.ok(forwarded.length >= 1);
+  for (const r of forwarded) assert.match(r['Submitted by'], /^[^\s@]+@[^\s@]+$/);
+  for (const r of w.coverage.filter((x) => x['Source route'] === 'Talkwalker')) assert.equal(r['Submitted by'], '');
+});
+
+test('the same link sent by a second person records both senders, once each', async () => {
+  const w = await world();
+  w.add('p1', 'Monitoring/Team Forward', { plainBody: 'https://example.com/story', from: 'Ben <ben@sedifly.com>' });
+  w.add('p2', 'Monitoring/Team Forward', { plainBody: 'https://example.com/story', from: 'Joash <joash@sedifly.com>' });
+  w.add('p3', 'Monitoring/Team Forward', { plainBody: 'https://example.com/story', from: 'BEN <Ben@sedifly.com>' });
+  processBatch(w.deps(only(w, 'p1', 'p2', 'p3')));
+  assert.equal(w.coverage.length, 1);
+  assert.equal(w.coverage[0]['Submitted by'], 'ben@sedifly.com');
+  assert.equal(w.updates.length, 1);
+  assert.equal(w.updates[0].values['Submitted by'], 'ben@sedifly.com, joash@sedifly.com');
 });

@@ -89,6 +89,11 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 44 | 5.1 | Script Properties as listed | More script managed keys: `PENDING_ALERTS`, `LAST_DIGEST_AT`, `LAST_IDLE_LOG_AT` | State that survives between runs | Technical |
 | 45 | 6.3 | Run Log row per run | Idle ingest runs are logged once an hour, runs that find mail every time (replaces item 30) | The log had 4,222 rows in two weeks | Decided (Ariel, 2026-11-02) |
 
+| 46 | 12 | The digest is always sent, even on a zero day | Send only when something is new or changed in the last 24 hours (new row, new review item, alert, review decision, failed or partial run). `digestNow()` sends regardless. Replaces the "zero item day" part of the M5 definition of done | Owner decision 2026-11-02 | Decided (Ariel) |
+| 47 | 6.1 and 7.2 | `Logged by` is `script` or a person | Add `Submitted by` (sender address of a team forward, several when more than one person sent the link, blank for alerts). It is on the script's list of cells it may change on an existing row | Item 33, now agreed | Decided (Ariel) |
+| 48 | 6.1 | No in-sheet help | `setup()` writes a hover note on every header. `simpleView()` and `fullView()` hide and show technical columns by hand | Item 34, now agreed in part | Decided (Ariel) |
+| 49 | 16 | `old_tracker_mapping.csv` is a TODO(Ben) | A draft mapping is in the repo for Ben to confirm | Needed for the 4 November import | Needs decision (Ben) |
+
 ## I. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.

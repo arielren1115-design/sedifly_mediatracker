@@ -39,6 +39,7 @@ export function toCoverageRow(item, { coverageId, now, normalisedUrl, classifica
     'Source route': item.route,
     'Gmail message ID': item.gmailMessageId,
     'Logged by': 'script',
+    'Submitted by': item.submittedBy || '',
     'Last updated': now,
   };
   return classification ? applyClassification(row, item, classification, threshold) : row;

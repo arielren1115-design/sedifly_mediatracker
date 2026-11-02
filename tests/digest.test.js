@@ -9,8 +9,9 @@ const NOW = Date.parse('2026-11-03T01:00:00Z');
 const hoursAgo = (h) => new Date(NOW - h * 3600 * 1000);
 const base = { nowMs: NOW, coverage: [], review: [], runLog: [], lastSuccessIso: '2026-11-03T00:55:00Z', sheetUrl: 'https://sheet' };
 
-test('a zero day still produces a digest that says so', () => {
+test('a zero day builds a digest that says so, but is not due to be sent', () => {
   const d = buildDigest(base);
+  assert.equal(d.stats.hasChanges, false);
   assert.equal(d.subject, 'Sedifly Media digest: 0 new items');
   assert.match(d.body, /No new coverage in the last 24 hours\./);
   assert.match(d.body, /Last successful run: 2026-11-03 08:55 SGT/);
@@ -66,13 +67,34 @@ async function ready(extra = {}) {
   return { env, sb, run: (c) => vm.runInContext(c, sb) };
 }
 
-test('dailyDigest through the bundle: one mail to ops and alert recipients, each once, even with no data; a second trigger run is skipped; digestNow forces', async () => {
+test('dailyDigest sends nothing when nothing is new or changed, and digestNow still sends', async () => {
   const { env, run } = await ready();
+  const quiet = run('dailyDigest()');
+  assert.equal(quiet.status, 'SKIPPED');
+  assert.equal(quiet.reason, 'nothing new');
+  assert.equal(env.mail.length, 0);
+  assert.equal(env.store.LAST_DIGEST_AT, undefined);
+  assert.equal(run('digestNow()').status, 'OK');
+  assert.match(env.mail[0].body, /No new coverage in the last 24 hours\./);
+});
+
+test('what counts as a change: new row, new review item, alert, decision, or a bad run; waiting items and skips alone do not', () => {
+  const none = buildDigest({ ...base, review: [{ Decision: '', 'Synced at': '', 'Detected at': hoursAgo(50) }], runLog: [{ 'Started at': hoursAgo(1), 'Skipped (no entity)': 4, 'Status (OK / PARTIAL / FAILED)': 'OK' }] });
+  assert.equal(none.stats.hasChanges, false);
+  assert.equal(buildDigest({ ...base, review: [{ 'Detected at': hoursAgo(2) }] }).stats.hasChanges, true);
+  assert.equal(buildDigest({ ...base, review: [{ 'Detected at': hoursAgo(50), 'Synced at': hoursAgo(2) }] }).stats.hasChanges, true);
+  assert.equal(buildDigest({ ...base, runLog: [{ 'Started at': hoursAgo(1), 'Status (OK / PARTIAL / FAILED)': 'FAILED' }] }).stats.hasChanges, true);
+  assert.equal(buildDigest({ ...base, coverage: [{ 'Detected at': hoursAgo(50), 'Instant alert sent': hoursAgo(1) }] }).stats.hasChanges, true);
+});
+
+test('dailyDigest through the bundle: one mail when there is news, to ops and alert recipients each once; a second trigger run is skipped; digestNow forces', async () => {
+  const { env, run } = await ready();
+  env.sheets.x.Coverage.rows.push(COVERAGE_HEADERS.map((h) => ({ 'Detected at': new Date(), Channel: 'News', Priority: 'High', Title: 'Story', URL: 'https://q' }[h] ?? '')));
   const first = run('dailyDigest()');
   assert.equal(first.status, 'OK');
   assert.equal(env.mail.length, 1);
   assert.deepEqual(env.mail[0].to.split(',').sort(), ['marketing@example.com', 'ops@example.com']);
-  assert.match(env.mail[0].subject, /^Sedifly Media digest: 0 new items/);
+  assert.match(env.mail[0].subject, /^Sedifly Media digest: 1 new item/);
   assert.equal(run('dailyDigest()').status, 'SKIPPED');
   assert.equal(env.mail.length, 1);
   assert.equal(run('digestNow()').status, 'OK');
@@ -90,6 +112,7 @@ test('the digest counts a new row written in the last day', async () => {
 
 test('with every recipient a placeholder the digest fails loudly and is logged FAILED', async () => {
   const { env, run } = await ready({ OPS_RECIPIENTS: 'PLACEHOLDER', ALERT_RECIPIENTS: 'PLACEHOLDER' });
+  env.sheets.x.Coverage.rows.push(COVERAGE_HEADERS.map((h) => ({ 'Detected at': new Date() }[h] ?? '')));
   assert.throws(() => run('dailyDigest()'), /No digest recipients/);
   assert.equal(env.mail.length, 0);
   assert.equal(env.sheets.x['Run Log'].rows.at(-1)[12], 'FAILED');

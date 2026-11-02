@@ -8,3 +8,5 @@ function digestNow() { return App.digestNow(); } // run by hand to send the dige
 function runBackfill(step) { return App.runBackfill(step); }
 function compareBlindRun() { return App.compareBlindRun(); }
 function mergeBlindRun(opts) { return App.mergeBlindRun(opts); }
+function simpleView() { return App.simpleView(); } // run by hand: hide the technical columns
+function fullView() { return App.fullView(); } // run by hand: show every column

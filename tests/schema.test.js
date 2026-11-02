@@ -6,7 +6,7 @@ test('headers are unique and match the spec counts', () => {
   for (const [name, headers] of Object.entries(TABS)) {
     assert.equal(new Set(headers).size, headers.length, `${name} has duplicate headers`);
   }
-  assert.equal(COVERAGE_HEADERS.length, 28);
+  assert.equal(COVERAGE_HEADERS.length, 29);
   assert.equal(COVERAGE_HEADERS[COVERAGE_HEADERS.indexOf('Source route') + 1], 'Syndicated copies');
   assert.equal(COVERAGE_HEADERS[COVERAGE_HEADERS.indexOf('Channel') + 1], 'Source type');
   assert.equal(RUN_LOG_HEADERS.length, 14);
@@ -35,4 +35,16 @@ test('trigger plan and labels match spec 14 and 7.1', () => {
   assert.equal(TRIGGERS[0].everyMinutes, 5);
   assert.equal(TRIGGERS[3].atHour, 9);
   assert.equal(LABELS.length, 4);
+});
+
+import { COLUMN_HELP, SIMPLE_VIEW_HIDDEN } from '../src/core/schema.js';
+
+test('every column on every tab has help text, and the simple view only hides real columns', () => {
+  for (const [name, headers] of Object.entries(TABS)) for (const h of headers) assert.ok(COLUMN_HELP[h], `${name}: no help for ${h}`);
+  for (const [name, hidden] of Object.entries(SIMPLE_VIEW_HIDDEN)) for (const h of hidden) assert.ok(TABS[name].includes(h), `${name}: ${h}`);
+});
+
+test('the simple view never hides what marketing needs', () => {
+  const all = Object.values(SIMPLE_VIEW_HIDDEN).flat();
+  for (const keep of ['Title', 'URL', 'Entity', 'Category', 'Priority', 'Verification', 'Notes', 'Decision', 'Submitted by', 'Review reason']) assert.ok(!all.includes(keep), keep);
 });

@@ -292,3 +292,13 @@ The classifier needs the Anthropic key, so a real Critical item cannot be classi
 3. Within 5 minutes the row appears in Coverage with a new ID and an alert email arrives "[Sedifly Media] Critical: Sedifly in ..." with a working link to the row. `Instant alert sent` is filled in. Wait another 10 minutes: no second email.
 4. Run `digestNow` from the editor: you should get the digest at ariel@sedifly.com with at least that row listed.
 5. Once the Anthropic key is in: a seeded Critical email (a forward about Sedifly with serious wording) should alert within 15 minutes, and a low confidence one should arrive as UNCONFIRMED.
+
+
+## 2026-11-02 later: digest only on changes, sender tracking, column help and simple view
+
+- **Digest sends only when something is new or changed** (owner decision, replaces "always sent"): a new Coverage row, a new Review Queue item, an instant alert, a review decision processed, or a failed or partial run in the last 24 hours. Items merely waiting, or skipped alert results alone, do not trigger it. `digestNow()` still sends whenever you run it. The health check (M6) is unaffected, so a silent day is not a broken tool.
+- **Sender tracking:** new column `Submitted by` on Coverage and Review Queue (added at the end of existing sheets by `setup()`). For a team forward it holds the sender's address, lower case. If a second person sends the same link, both addresses are kept in one cell and no row is added. Automatic alerts leave it blank. It carries across when a review row is approved. Note: a forward from a personal address is only accepted if it is on `TEAM_SENDER_ALLOWLIST` (an address or `@domain`, comma separated); anything else goes to `Monitoring/Review` with "Sender not on the team allowlist".
+- **Column help:** `setup()` puts a hover note on every header of the three tabs saying what the column records (text in `core/schema.js`, one place to edit).
+- **Simple view (not applied yet):** `simpleView()` hides the technical columns (Outlet tier, Normalised URL, Archive status, Archive link, Found in, Gmail message ID, Classifier confidence on Coverage, Logged by, Last updated; on Review Queue also Synced at). `fullView()` shows everything again. Nothing is deleted or moved. Run by hand when the owners want it.
+- **Old tracker mapping draft:** `fixtures/config/old_tracker_mapping.csv`, marked DRAFT, for Ben to confirm before the 4 November import is built.
+- Tests: 266 passing.

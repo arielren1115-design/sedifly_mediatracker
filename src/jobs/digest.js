@@ -38,6 +38,7 @@ function send({ force }) {
       lastSuccessIso: getProp('LAST_SUCCESS_AT'),
       sheetUrl: ss.getUrl(),
     });
+    if (!force && !digest.stats.hasChanges) { log('dailyDigest SKIPPED (nothing new or changed in the last 24 hours)'); return { status: 'SKIPPED', reason: 'nothing new' }; }
     const to = digestRecipients();
     if (!to.length) throw new Error('No digest recipients are set (OPS_RECIPIENTS and the alert recipients are missing or placeholders)');
     MailApp.sendEmail({ to: to.join(','), subject: digest.subject, body: digest.body });
@@ -50,12 +51,12 @@ function send({ force }) {
   }
 }
 
-/** Daily 09:00 SGT. Sent even on a zero day. A second run within 12 hours is skipped, so a retried trigger cannot double send. */
+/** Daily 09:00 SGT, but only when something is new or changed (new rows, new review items, alerts, decisions, failed runs). A second run within 12 hours is skipped. */
 export function dailyDigest() {
   return send({ force: false });
 }
 
-/** Run by hand from the editor to send the digest now, whatever was sent earlier. */
+/** Run by hand from the editor to send the digest now, whatever was sent earlier and even if nothing changed. */
 export function digestNow() {
   return send({ force: true });
 }

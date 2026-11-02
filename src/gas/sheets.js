@@ -1,4 +1,4 @@
-import { missingHeaders, TABS, REVIEW_DECISIONS, DATETIME_FORMATS, SOURCE_TYPE_VALUES } from '../core/schema.js';
+import { missingHeaders, TABS, REVIEW_DECISIONS, DATETIME_FORMATS, SOURCE_TYPE_VALUES, COLUMN_HELP, SIMPLE_VIEW_HIDDEN } from '../core/schema.js';
 
 /**
  * Create a tab if needed and append any missing headers. Never deletes or reorders columns.
@@ -60,6 +60,12 @@ export function ensureAllTabs(ss) {
     sheet.getRange(2, columnByHeader(sheet, 'Source type'), sheet.getMaxRows() - 1, 1).setDataValidation(sourceRule);
   }
 
+  // Hover notes on every header explain what the column records.
+  for (const [name, headers] of Object.entries(TABS)) {
+    const sheet = ss.getSheetByName(name);
+    for (const h of headers) sheet.getRange(1, columnByHeader(sheet, h), 1, 1).setNote(COLUMN_HELP[h]);
+  }
+
   const blank = ss.getSheetByName('Sheet1');
   if (blank && ss.getSheets().length > 1 && blank.getLastRow() === 0 && blank.getLastColumn() === 0) ss.deleteSheet(blank);
   return summary;
@@ -98,7 +104,7 @@ export function appendObjects(sheet, objects) {
 }
 
 /** Header names the script may rewrite on an existing row. Everything else is human owned or permanent (spec 6.1). */
-const UPDATABLE = ['Source route', 'Found in', 'Syndicated copies', 'Last updated'];
+const UPDATABLE = ['Source route', 'Found in', 'Syndicated copies', 'Submitted by', 'Last updated'];
 
 /** Writes values into named cells of one existing row. Refuses any header that is not on the allowed list (default: the script owned Coverage cells). */
 export function updateCells(sheet, rowNumber, values, allowed = UPDATABLE) {
@@ -131,6 +137,7 @@ export function readIndexRows(ss) {
       sourceRoute: String(col(row, 'Source route')),
       foundIn: String(col(row, 'Found in')),
       syndicatedCopies: col(row, 'Syndicated copies'),
+      submittedBy: String(col(row, 'Submitted by')),
       gmailMessageId: col(row, 'Gmail message ID'),
     }));
   }
@@ -152,4 +159,28 @@ export function assertTabsReady(ss) {
     if (missing.length) problems.push(`the ${name} tab is missing the column${missing.length > 1 ? 's' : ''} ${missing.join(', ')}`);
   }
   if (problems.length) throw new Error(`The sheet is not set up: ${problems.join('; ')}. Run setup() to restore it.`);
+}
+
+/**
+ * Hides (simple) or shows (full) the technical columns of Coverage and Review Queue. Nothing is deleted, moved or changed, and
+ * the script keeps addressing columns by name, so hidden columns still work.
+ * @param {object} ss spreadsheet
+ * @param {boolean} simple true to hide, false to show everything
+ * @returns {Object<string, string[]>} the columns affected per tab
+ */
+export function setSimpleView(ss, simple) {
+  const done = {};
+  for (const [name, hidden] of Object.entries(SIMPLE_VIEW_HIDDEN)) {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) continue;
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
+    done[name] = [];
+    headers.forEach((h, i) => {
+      if (!hidden.includes(h)) return;
+      if (simple) sheet.hideColumns(i + 1); else sheet.showColumns(i + 1);
+      done[name].push(h);
+    });
+    if (!simple) sheet.showColumns(1, headers.length);
+  }
+  return done;
 }

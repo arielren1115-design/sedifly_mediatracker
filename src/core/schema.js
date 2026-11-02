@@ -6,7 +6,7 @@ export const COVERAGE_HEADERS = [
   'Title', 'URL', 'Normalised URL', 'Excerpt', 'Category', 'Priority', 'Sentiment',
   'Rules matched', 'Instant alert sent', 'Archive status', 'Archive link', 'Found in',
   'Verification', 'Source route', 'Syndicated copies', 'Gmail message ID', 'Classifier confidence', 'Logged by',
-  'Notes', 'Last updated',
+  'Submitted by', 'Notes', 'Last updated',
 ];
 
 /** Review Queue = every Coverage column plus the review columns (spec 6.2). */
@@ -70,3 +70,51 @@ export function missingHeaders(existing, wanted) {
   const have = new Set(existing.map((h) => String(h).trim()).filter(Boolean));
   return wanted.filter((h) => !have.has(h));
 }
+
+/** What each column records, shown as a note on its header cell (hover over the header). Plain English for the marketing team. */
+export const COLUMN_HELP = {
+  'Coverage ID': 'Permanent ID for this item, like COV-000017. Never reused.',
+  'Detected at': 'When the tool (or a person) first logged the item. Singapore time.',
+  'Published at': 'Date the article or post was published, if known. Often blank for alerts.',
+  Entity: 'Who or what the item is about: Sedifly, Joash Lee, a strategist, a partner or an event.',
+  Channel: 'Where it appeared: News, Blog, Listing, Reddit, Hacker News, Forum, Social, Podcast or Other.',
+  'Source type': 'Media, Social Media or Non-Media Listings.',
+  Outlet: 'Publication, subreddit or website name.',
+  'Outlet tier': 'Tier of the outlet. Stays blank until a tier list exists.',
+  Title: 'Headline or post title. Blank for forwarded links until the page is read.',
+  URL: 'The link as received, with redirect wrappers removed.',
+  'Normalised URL': 'Cleaned copy of the link, used only to spot duplicates. Do not edit.',
+  Excerpt: 'Up to 500 characters around the mention.',
+  Category: 'General, Event, Brand or Strategist.',
+  Priority: 'Critical, High, Standard or Low.',
+  Sentiment: 'Positive, Neutral, Negative or Unclear.',
+  'Rules matched': 'Monitoring Rule IDs that applied, for example MR-006.',
+  'Instant alert sent': 'When an instant alert email went out for this item. Blank means none was sent.',
+  'Archive status': 'Pending, Filed, Filed (PNG), Save by hand, Screenshot needed or Not required. Archiving is paused for now, so rows stay Pending.',
+  'Archive link': 'Drive link to the saved copy. Blank while archiving is paused.',
+  'Found in': 'Which system found it: Old, Tool, Archive or Manual.',
+  Verification: 'Verified (confident or approved by a person) or Needs verification.',
+  'Source route': 'How it reached us: Google Alerts, Talkwalker, F5Bot or Team forward. Several if more than one.',
+  'Syndicated copies': 'How many other websites ran the same headline. Counted here instead of adding rows.',
+  'Gmail message ID': 'Technical ID of the email. Stops the same email being processed twice. Do not edit.',
+  'Classifier confidence': 'How sure the AI was, from 0 to 1. Below 0.70 goes to the Review Queue.',
+  'Logged by': 'script for the tool, or a person.',
+  'Submitted by': 'Email address of the team member who forwarded the link. Blank for automatic alerts. Several if more than one person sent it.',
+  Notes: 'Free text for people. The tool never changes this.',
+  'Last updated': 'Last time the tool changed the row.',
+  'Review reason': 'Why the item is in the Review Queue.',
+  Decision: 'Choose Approve to copy the row into Coverage (fix any wrong cells first), or Reject to keep it here only.',
+  'Reviewed by': 'Email of the person who made the decision.',
+  'Synced at': 'When the decision was processed. Filled by the tool.',
+  'Run ID': 'Unique ID of one run.', Function: 'Which job ran.', 'Started at': 'When the run began.', 'Duration ms': 'How long the run took in milliseconds.',
+  'Messages seen': 'Emails looked at.', 'Items parsed': 'Links or mentions found in them.', 'New rows': 'Rows added to Coverage.',
+  Duplicates: 'Items already in the sheet, or copies counted on an existing row.', 'To review': 'Items or emails sent to review.',
+  'Skipped (no entity)': 'Alert results ignored because no monitored name matched.', 'Capture failures': 'Archive captures that failed. Zero while archiving is paused.',
+  Errors: 'Messages that failed.', 'Status (OK / PARTIAL / FAILED)': 'OK, PARTIAL (some problem) or FAILED.', Detail: 'Technical detail of what happened.',
+};
+
+/** Columns the simple view hides, because marketing does not need them day to day. Nothing is deleted or moved. */
+export const SIMPLE_VIEW_HIDDEN = {
+  Coverage: ['Outlet tier', 'Normalised URL', 'Archive status', 'Archive link', 'Found in', 'Gmail message ID', 'Classifier confidence', 'Logged by', 'Last updated'],
+  'Review Queue': ['Outlet tier', 'Normalised URL', 'Archive status', 'Archive link', 'Found in', 'Gmail message ID', 'Logged by', 'Last updated', 'Synced at'],
+};

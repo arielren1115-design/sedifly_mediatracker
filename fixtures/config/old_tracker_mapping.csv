@@ -1,0 +1,13 @@
+old_column,book_of_truth_column,rule,status
+Media Date,Published at,"Date only. Rows with no valid date are imported with Verification set to Needs verification",DRAFT (to confirm with Ben)
+Media Date,Detected at,"Set to the import time, not the Media Date, so the 7 day syndication window does not hide new items. Alternative: leave Detected at as the Media Date at 12:00 SGT",DRAFT (to confirm with Ben)
+Category,Category,"Copied only when it is one of General, Event, Brand, Strategist. Any other value is left blank and noted in Notes",DRAFT (to confirm with Ben)
+Media Name,Outlet,"Copied as written",DRAFT (to confirm with Ben)
+Topic,Notes,"Written as ""Old topic: <Topic>"". Not used as Entity because Topic is a story name, not always an entity",DRAFT (to confirm with Ben)
+Link,URL,"Copied as written; Normalised URL is computed. Rows with no link are imported with Verification set to Needs verification",DRAFT (to confirm with Ben)
+(none),Found in,"Old",DRAFT (to confirm with Ben)
+(none),Source route,"Backfill: Old tracker",DRAFT (to confirm with Ben)
+(none),Logged by,"import",DRAFT (to confirm with Ben)
+(none),Verification,"Verified is never set by the import. Needs verification unless the row has both a link and a date",DRAFT (to confirm with Ben)
+(none),Source type and Channel,"Filled from the link when it decides them (social, Reddit, Hacker News); otherwise left blank for review",DRAFT (to confirm with Ben)
+(none),Entity Priority Sentiment Rules matched,"Left blank. The classifier can fill them later in a separate pass if the owners want it",DRAFT (to confirm with Ben)

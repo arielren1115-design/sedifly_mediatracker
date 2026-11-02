@@ -51,3 +51,19 @@ test('setup clears stray dropdowns on Coverage and Review Queue before setting t
   assert.ok(env.sheets.x.Coverage.cleared >= 1);
   assert.ok(env.sheets.x['Review Queue'].cleared >= 1);
 });
+
+test('setup puts a hover note on every header; simpleView hides the technical columns and fullView shows them again', async () => {
+  const env = makeEnv(goodProps());
+  const sb = await load(env);
+  vm.runInContext('setup()', sb);
+  const cov = env.sheets.x.Coverage;
+  assert.equal(Object.keys(cov.notes).length, cov.rows[0].length);
+  assert.match(cov.notes[cov.rows[0].indexOf('Submitted by') + 1], /Email address of the team member/);
+  const hidden = vm.runInContext('simpleView()', sb);
+  assert.ok(hidden.Coverage.includes('Gmail message ID') && !hidden.Coverage.includes('Title'));
+  assert.equal(cov.hidden.has(cov.rows[0].indexOf('Gmail message ID') + 1), true);
+  assert.equal(cov.hidden.has(cov.rows[0].indexOf('Title') + 1), false);
+  vm.runInContext('fullView()', sb);
+  assert.equal(cov.hidden.size, 0);
+  assert.equal(cov.rows.length, 1, 'no data or headers were touched');
+});

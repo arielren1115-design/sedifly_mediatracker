@@ -6,6 +6,7 @@ import { mergeList, isRedditCommentUrl } from './dedupe.js';
 import { entityGate } from './entityGate.js';
 import { classifyItem, DeferError } from './classifyStep.js';
 import { decideAlert } from './routing.js';
+import { extractEmail } from './parsers/teamForward.js';
 
 /**
  * @param {object} deps
@@ -51,6 +52,9 @@ export function processBatch(deps) {
         s.details.push({ id, outcome: 'review', reason, from: message.from, subject: message.subject });
         continue;
       }
+      // Who sent a team forward is kept on the row. Automatic alerts have no submitter.
+      const submittedBy = extractEmail(message.from);
+      items = items.map((it) => (it.route === 'Team forward' && submittedBy ? { ...it, submittedBy } : it));
       s.itemsParsed += items.length;
       const counts = { newRows: 0, duplicates: 0, reviewRows: 0, classified: 0, alerts: 0, alertFailures: 0, skipped: [], syndicated: [], entities: new Set() };
       try {
@@ -101,16 +105,19 @@ function handleItem(deps, item, counts) {
   if (existing) {
     const sourceRoute = mergeList(existing.sourceRoute, item.route);
     const foundIn = mergeList(existing.foundIn, 'Tool');
-    if (sourceRoute !== existing.sourceRoute || foundIn !== existing.foundIn) {
-      deps.updateExisting(existing, { 'Source route': sourceRoute, 'Found in': foundIn, 'Last updated': now });
+    // A link sent by a second person records both senders.
+    const submittedBy = item.submittedBy ? mergeList(existing.submittedBy || '', item.submittedBy) : existing.submittedBy || '';
+    if (sourceRoute !== existing.sourceRoute || foundIn !== existing.foundIn || submittedBy !== (existing.submittedBy || '')) {
+      deps.updateExisting(existing, { 'Source route': sourceRoute, 'Found in': foundIn, ...(submittedBy !== (existing.submittedBy || '') ? { 'Submitted by': submittedBy } : {}), 'Last updated': now });
       index.setRoutes(existing, sourceRoute, foundIn);
+      existing.submittedBy = submittedBy;
     }
     index.addKey(key);
     counts.duplicates++;
     return;
   }
 
-  const entry = { url: item.url || '', normalisedUrl: norm || '', title: item.title || '', detectedAt: now, sourceRoute: item.route, foundIn: 'Tool', gmailMessageId: item.gmailMessageId };
+  const entry = { url: item.url || '', normalisedUrl: norm || '', title: item.title || '', detectedAt: now, sourceRoute: item.route, foundIn: 'Tool', gmailMessageId: item.gmailMessageId, submittedBy: item.submittedBy || '' };
   // Spec 12: an instant alert is due even when the item goes to review (then it is UNCONFIRMED). Needs a classification to know.
   const alertIfDue = (sheet, rowNumber, coverageId, row, classification, unconfirmed) => {
     if (!deps.sendAlert || !classification || !deps.classifier) return;
