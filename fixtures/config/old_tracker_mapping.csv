@@ -1,13 +1,20 @@
 old_column,book_of_truth_column,rule,status
-Media Date,Published at,"Date only. Rows with no valid date are imported with Verification set to Needs verification",DRAFT (to confirm with Ben)
-Media Date,Detected at,"Set to the import time, not the Media Date, so the 7 day syndication window does not hide new items. Alternative: leave Detected at as the Media Date at 12:00 SGT",DRAFT (to confirm with Ben)
-Category,Category,"Copied only when it is one of General, Event, Brand, Strategist. Any other value is left blank and noted in Notes",DRAFT (to confirm with Ben)
-Media Name,Outlet,"Copied as written",DRAFT (to confirm with Ben)
-Topic,Notes,"Written as ""Old topic: <Topic>"". Not used as Entity because Topic is a story name, not always an entity",DRAFT (to confirm with Ben)
-Link,URL,"Copied as written; Normalised URL is computed. Rows with no link are imported with Verification set to Needs verification",DRAFT (to confirm with Ben)
-(none),Found in,"Old",DRAFT (to confirm with Ben)
-(none),Source route,"Backfill: Old tracker",DRAFT (to confirm with Ben)
-(none),Logged by,"import",DRAFT (to confirm with Ben)
-(none),Verification,"Verified is never set by the import. Needs verification unless the row has both a link and a date",DRAFT (to confirm with Ben)
-(none),Source type and Channel,"Filled from the link when it decides them (social, Reddit, Hacker News); otherwise left blank for review",DRAFT (to confirm with Ben)
-(none),Entity Priority Sentiment Rules matched,"Left blank. The classifier can fill them later in a separate pass if the owners want it",DRAFT (to confirm with Ben)
+(all 3 tabs),(import scope),"Every row of every tab of the Old tracker is imported or accounted for in the import report. No row is dropped. The Old file is only read, never changed",DRAFT v2 (Ben, 2026-11-03: account for all 3 tabs)
+Media Coverage tab: Media Date,Published at,"Date only. Rows with no valid date are imported with Verification set to Needs verification",DRAFT v2
+Media Coverage tab: Media Date,Detected at,"Media Date at 12:00 SGT, not the import time, so imported history never appears as new in the digest and the 7 day syndication window stays meaningful",DRAFT v2
+Media Coverage tab: Category,Category,"Copied when it is General, Event, Brand or Strategist. Any other value is kept as text in Notes (Old category: <value>) and the Category cell is left blank",DRAFT v2
+Media Coverage tab: Media Name,Outlet,"Copied as written",DRAFT v2
+Media Coverage tab: Topic,Notes,"Written as Old topic: <Topic>. Not used as Entity because Topic is a story name, not always an entity",DRAFT v2
+Media Coverage tab: Link,URL,"Copied as written; Normalised URL is computed. Rows with no link are imported with Verification set to Needs verification",DRAFT v2
+Social Media tab: columns to be confirmed,"Channel, Source type, Outlet, URL, Notes","Source type Social Media and Channel from the link or the Platform column; Topic and Platform go to Notes. Exact Old column names to be confirmed from the tab",DRAFT v2 (needs the tab's columns)
+Third tab: name and columns to be confirmed,to be confirmed,"Not yet seen. Needs the tab name and its column headings from Ben or Ariel",OPEN
+(none),Found in,"Old",DRAFT v2
+(none),Source route,"Backfill: Old tracker",DRAFT v2
+(none),Import source,"New column. Tab name and row number of the Old row, so every imported row can be traced back and nothing is lost",DRAFT v2 (new column to approve)
+(none),Logged by,"import",DRAFT v2
+(none),Verification,"Per spec 16: Verified when the Old row has both a link and a date (a person logged it); otherwise Needs verification. Link health is not checked while archiving (M4) is paused",DRAFT v2
+(none),Instant alert sent,"Left blank. Imports never go through alert code: no row written by the import can send an alert, and a live alert for a story already imported is merged as a duplicate, not alerted",DRAFT v2
+(none),Syndicated copies and placements,"Same headline (5 or more words) within 7 days of Media Date groups into one story row. Every grouped row is kept as a line in the new Syndicated Placements tab with its outlet, link, date and Old row reference, so no placement is lost. Topic is not used to group because Topic can be an event name covering different stories",DRAFT v2 (new tab to approve)
+(none),Source type and Channel,"Filled from the link when it decides them (social, Reddit, Hacker News); otherwise left blank",DRAFT v2
+(none),Entity Priority Sentiment Rules matched,"Left blank. The classifier can fill them later in a separate pass if the owners want it. Imported rows are not shown in the daily digest and do not enter the Review Queue",DRAFT v2
+Ben audit results,"URL, Source route","Items the Claude audit finds that the Old tracker missed are imported as Needs verification with Source route Backfill: audit. Format of the audit output to be confirmed with Ben",OPEN

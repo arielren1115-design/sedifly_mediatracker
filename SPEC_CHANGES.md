@@ -94,6 +94,12 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 48 | 6.1 | No in-sheet help | `setup()` writes a hover note on every header. `simpleView()` and `fullView()` hide and show technical columns by hand | Item 34, now agreed in part | Decided (Ariel) |
 | 49 | 16 | `old_tracker_mapping.csv` is a TODO(Ben) | A draft mapping is in the repo for Ben to confirm | Needed for the 4 November import | Needs decision (Ben) |
 
+| 50 | 6.1 and 16 | Old rows are imported with `Found in = Old` | Add a column `Import source` (Old tab and row number) so every imported row traces back to the frozen Old file | Ben asked to preserve historical data | Needs decision (Ben) |
+| 51 | 6.1, 8.2 and 16 | Syndicated copies are counted on the first row; only the first few copy URLs reach the Run Log | Add a tab `Syndicated Placements` with one line per placement (group ID, outlet, link, date, origin) used by the import and by live ingest, so a grouped story keeps every placement. Counts stay on the main row | Ben asked to group without losing individual placements | Needs decision (Ben) |
+| 52 | 16 | Imported rows are `Needs verification` unless they have a link and a date | Same, stated explicitly: link and date means Verified (a person logged it). Detected at is the Media Date at 12:00 SGT, not the import time | Keeps history out of the digest and out of "new" counts | Needs decision (Ben) |
+| 53 | 12 and 16 | Not stated | Imports never send alerts. A live alert for a link already in the sheet merges as a duplicate and does not alert | Ben's requirement | Needs decision (Ben) |
+| 54 | 16 | Old tracker has one tab | The import covers all 3 tabs of the Old tracker. The mapping for the third tab is not yet known | Ben's requirement | Open (needs the third tab's name and columns) |
+
 ## I. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.

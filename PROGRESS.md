@@ -302,3 +302,20 @@ The classifier needs the Anthropic key, so a real Critical item cannot be classi
 - **Simple view (not applied yet):** `simpleView()` hides the technical columns (Outlet tier, Normalised URL, Archive status, Archive link, Found in, Gmail message ID, Classifier confidence on Coverage, Logged by, Last updated; on Review Queue also Synced at). `fullView()` shows everything again. Nothing is deleted or moved. Run by hand when the owners want it.
 - **Old tracker mapping draft:** `fixtures/config/old_tracker_mapping.csv`, marked DRAFT, for Ben to confirm before the 4 November import is built.
 - Tests: 266 passing.
+
+
+## 2026-11-03: Ben's update (golden set, import mapping)
+
+### Golden set
+- Ben has labelled the 40 examples in the working copy (4 real alert items, 14 distinct Old tracker stories, 22 third party social posts) and flagged 4 for review. The 4 flagged rows I can see are the ones labelled `review`: o002 (AI story, no entity), s002 (Instagram, no topic), s003 (LinkedIn, topic AI) and s005 (TikTok, "Jeremy", which strategist?).
+- Not yet in the repo: the Drive connector shows only part of the sheet, so `fixtures/golden/golden.csv` still needs the full sheet exported as CSV. The accuracy check also needs the Anthropic key.
+- **Gap in the set**: from the rows I could read there are no `skip` cases, no Critical or High priority negative items, no different person with the same name (the Unisba video credit was left out), no syndicated copy and no Reddit item. The accuracy target is measured on the logged items, so the set cannot yet show that alerts, skips or review routing work. Suggested: add about 10 rows of those kinds.
+
+### Old tracker import (M7), Ben's requirements
+Ben said the mapping looks good overall and asked that the import:
+1. accounts for all 3 Old tracker tabs (I have only seen the Media Coverage tab and the Social Media tab; the third tab's name and columns are needed),
+2. preserves historical data,
+3. is excluded from live alerts,
+4. groups syndicated coverage without losing individual placements,
+and asked how deduplication and verification will work. The answer drafted for Ben, and the revised mapping (`fixtures/config/old_tracker_mapping.csv`, now draft v2), are in this commit. Two corrections to my first draft: Detected at is now the Media Date (so history never shows as new), and Verification follows spec 16 (Verified when the Old row has a link and a date).
+- Proposed schema additions, for Ben to approve before anything is built: a column `Import source` (Old tab and row), and a tab `Syndicated Placements` (one line per placement of a grouped story).
