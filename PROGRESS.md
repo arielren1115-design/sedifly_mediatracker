@@ -319,3 +319,9 @@ Ben said the mapping looks good overall and asked that the import:
 4. groups syndicated coverage without losing individual placements,
 and asked how deduplication and verification will work. The answer drafted for Ben, and the revised mapping (`fixtures/config/old_tracker_mapping.csv`, now draft v2), are in this commit. Two corrections to my first draft: Detected at is now the Media Date (so history never shows as new), and Verification follows spec 16 (Verified when the Old row has a link and a date).
 - Proposed schema additions, for Ben to approve before anything is built: a column `Import source` (Old tab and row), and a tab `Syndicated Placements` (one line per placement of a grouped story).
+
+### 2026-11-03: golden batches 2 and 3
+- `fixtures/golden/golden_batch2.csv` (14 rows): syndicated copies, General rows, wire and repost items, the Unisba same name case, and two Sedifly own content posts. Real items from the two Old trackers, labels blank for Ben.
+- `fixtures/golden/golden_batch3_synthetic.csv` (6 rows): invented test cases, clearly marked SYNTHETIC with example.com links. They cover a damaging allegation, a factual error, a mildly critical mention, generic news, an unclear forward and an unverified rumour. Ben sets the labels.
+- Finding: because an alert's own name counts as an ambiguous hint, a generic article returned by the Sedifly alert goes to review ("Ambiguous entity match"), not skip. The tool never skips an alert result that carries an alert name unless the classifier says it is unrelated to a strong match. Ben to say whether review or skip is the label he wants for such items.
+- Reddit items are left out of the golden set for now (the F5Bot parser has a real fixture).
