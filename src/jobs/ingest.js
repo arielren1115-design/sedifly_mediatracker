@@ -54,7 +54,13 @@ export function runIngest() {
         allowlist: getProp('TEAM_SENDER_ALLOWLIST'),
       });
     }
-    appendRunLog(ss, { runId: Utilities.getUuid(), fn: 'runIngest', startedAt, durationMs: Date.now() - t0, summary, status: summary.status });
+    // A run with nothing to do is logged once an hour, not every 5 minutes, so the Run Log stays readable.
+    const idle = candidates.length === 0;
+    const lastIdle = Number(getProp('LAST_IDLE_LOG_AT')) || 0;
+    if (!idle || Date.now() - lastIdle >= 3600 * 1000) {
+      appendRunLog(ss, { runId: Utilities.getUuid(), fn: 'runIngest', startedAt, durationMs: Date.now() - t0, summary, status: summary.status });
+      if (idle) setProp('LAST_IDLE_LOG_AT', String(Date.now()));
+    }
     if (summary.status === 'OK') {
       setProp('LAST_SUCCESS_AT', new Date().toISOString());
       pingHeartbeat('ok');

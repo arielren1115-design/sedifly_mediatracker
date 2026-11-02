@@ -241,3 +241,18 @@ test('when the API is down the message stays unlabelled, and the third failed ru
   const rq = env.sheets.x['Review Queue'].rows;
   assert.equal(rq[1][rq[0].indexOf('Review reason')], 'Classifier unavailable');
 });
+
+test('idle runs are logged once an hour, busy runs every time', async () => {
+  const { env, sb, add } = await ready();
+  run(sb, 'runIngest()');
+  run(sb, 'runIngest()');
+  run(sb, 'runIngest()');
+  assert.equal(runLogRows(env).length - 1, 1, 'three idle runs in a row, one row');
+  env.store.LAST_IDLE_LOG_AT = String(Date.now() - 3601 * 1000);
+  run(sb, 'runIngest()');
+  assert.equal(runLogRows(env).length - 1, 2);
+  await add('f1', 'team_forward_link_only', ['Monitoring/Team Forward']);
+  run(sb, 'runIngest()');
+  assert.equal(runLogRows(env).length - 1, 3, 'a run with mail is always logged');
+  assert.ok(env.store.LAST_SUCCESS_AT, 'idle runs still count as successful for the heartbeat');
+});
