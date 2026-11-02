@@ -43,6 +43,12 @@ export function ensureAllTabs(ss) {
     }
   }
 
+  // The script owns the dropdowns on these tabs. Clear any stray ones first (for example a dropdown dragged onto the wrong columns), then set the right ones.
+  for (const name of ['Coverage', 'Review Queue']) {
+    const sheet = ss.getSheetByName(name);
+    if (sheet.getMaxRows() > 1 && sheet.getLastColumn() > 0) sheet.getRange(2, 1, sheet.getMaxRows() - 1, sheet.getMaxColumns()).clearDataValidations();
+  }
+
   const review = ss.getSheetByName('Review Queue');
   const col = columnByHeader(review, 'Decision');
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(REVIEW_DECISIONS, true).setAllowInvalid(false).build();

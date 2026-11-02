@@ -14,15 +14,18 @@ export function fakeSheet(name) {
     getLastColumn: () => rows.reduce((m, r) => Math.max(m, r.length), 0),
     getLastRow: () => rows.length,
     getMaxRows: () => 1000,
+    getMaxColumns: () => 40,
     getFrozenRows: () => s.frozen,
     setFrozenRows: (n) => { s.frozen = n; },
     getRange: (r, c, nr = 1, nc = 1) => ({
       getValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => (rows[r - 1 + i] || [])[c - 1 + j] ?? '')),
       setValues: (vals) => { vals.forEach((v, i) => { rows[r - 1 + i] = rows[r - 1 + i] || []; v.forEach((x, j) => { rows[r - 1 + i][c - 1 + j] = x; }); }); return { setFontWeight() {} }; },
       setDataValidation: () => {},
+      clearDataValidations: () => { s.cleared = (s.cleared || 0) + 1; },
       setNumberFormat: (f) => { s.formats[c] = f; },
     }),
   };
+  Object.defineProperty(s, 'cleared', { value: 0, writable: true, enumerable: false }); // test counter, kept out of state snapshots
   return s;
 }
 

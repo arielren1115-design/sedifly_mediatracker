@@ -43,3 +43,11 @@ test('setup creates everything, and a second run changes nothing', async () => {
   }
   assert.equal(JSON.stringify([env.sheets, env.labels, env.triggers.map((t) => t.getHandlerFunction()), env.store]), snapshot);
 });
+
+test('setup clears stray dropdowns on Coverage and Review Queue before setting the right ones', async () => {
+  const env = makeEnv(goodProps());
+  const sb = await load(env);
+  vm.runInContext('setup()', sb);
+  assert.ok(env.sheets.x.Coverage.cleared >= 1);
+  assert.ok(env.sheets.x['Review Queue'].cleared >= 1);
+});
