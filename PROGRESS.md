@@ -221,7 +221,7 @@ Wire classification into the ingest flow (after the entity gate, with the D12 pa
 | API failure path | Demonstrated by the built bundle test: unlabelled twice, Review Queue `Classifier unavailable` on the third run. |
 | Approve and Reject sync | Demonstrated by tests on the built bundle. Live check: set Decision on a DEV Review Queue row and wait 5 minutes. |
 
-## M6: Heartbeat and errors  (status: code complete 2026-10-25; live DoD check pending)
+## M6: Heartbeat and errors  (status: done, reported complete by Ariel at the 2026-11-02 sync)
 
 DoD: disabling the ingest trigger produces an ops email within 1 h (internal) and from the external ping service; a forced exception is logged and emailed once.
 
@@ -245,3 +245,28 @@ See `SPEC_CHANGES.md` (32 items with section, current text, proposal, reason and
 
 ### 2026-10-25: F5Bot live check passed
 The F5Bot alert moved from `Monitoring/Automated` to `Monitoring/Processed` in DEV, so all four sources (Google Alerts, Talkwalker, F5Bot, team forwards) are live-tested. M1 is closed.
+
+
+## 2026-11-02: sync with Joash and Ben, decisions and re-plan
+
+### Decisions
+- **MVP goal:** solve the core problem of missing coverage. M1 to M3 and M6 are reported complete. The project stays in Ariel's personal GitHub repo until handover (M9).
+- **M4 (screenshot and PDF archiving) is paused.** Not a priority. No ScreenshotOne key is needed for now. Archive status stays `Pending`, and the digest counts for `Screenshot needed` and `Save by hand` stay at 0.
+- **Migration on 4 November, in two parts.** First Ben audits the old sheet with a Claude prompt for coverage it missed, immediately before the import so nothing new is missed. Then the clean data is imported into the new tracker. This is the spec's M7 (backfill), now pulled forward, and it is not built yet.
+- **Tracker address.** The team sends links from their own email to one central tracker address. DEV uses `ariel+mediatest@sedifly.com`. Ariel will test sender tracking and whether a central inbox such as `pr@sedifly.com` is needed, then decide.
+- **Sender tracking.** The aim is to see who submitted each link. The Coverage tab has no column for this yet (see proposal below).
+- **Sheet simplification.** Make the Google Sheet friendlier for non technical users by removing unnecessary columns. Constraint from CLAUDE.md: the script never deletes or reorders columns, so the proposal is to hide columns and add a simple view, not delete them (see below).
+- **Golden set of rules** from past data to automate categorisation. Needs the labelled golden rows (still pending) and the Anthropic key.
+- **Docs (M9):** a User Guide for marketing (daily use, keyword management) and an Internal Maintenance Guide for developers (code and setup).
+- **Alert sources:** Ariel to set up strategic keyword monitoring in F5Bot, Google Alerts and Talkwalker.
+
+### Owners of the action items
+- Ariel: fix duplicate or new columns in the master sheet, document the label meanings, strategic keywords, email Joash for the Anthropic key (the screenshot key is no longer needed while M4 is paused), test sender tracking and decide `pr@sedifly.com`.
+- Ben: Claude prompt for the past coverage audit, run on 4 November with Ariel.
+- Joash: set up the keys on receipt.
+
+### Re-plan
+1. Next build is M5 (routing, alerts, digest), still blocked on the question of how the rules sheet maps to alert recipients (asked on 2026-11-02).
+2. Sender tracking and sheet simplification need an owner decision before code (see SPEC_CHANGES.md items 33 and 34).
+3. The 4 November import needs the Old tracker to Book of Truth column mapping from Ben (`fixtures/config/old_tracker_mapping.csv`, still a `TODO(Ben)` in the spec) and a decision on which of the old tracker rows are imported as `Needs verification`.
+4. M9 now has two guides instead of one.

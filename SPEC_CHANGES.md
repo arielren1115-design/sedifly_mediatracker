@@ -2,7 +2,7 @@
 
 Every place where the code differs from `BUILD_SPEC.md`, or where the spec was silent and a choice was made. `BUILD_SPEC.md` has not been edited. Status key: **Decided** means an owner chose it and the code already follows it, so the spec text only needs updating. **Needs decision** means the code follows the proposal for now and the owners should confirm or reverse it. **Technical** means an engineering fix the owners need only note.
 
-Last updated: 2026-10-25, after M3 code and M6.
+Last updated: 2026-11-02, after the sync with Joash and Ben.
 
 ## A. Data model (sections 6 and 7)
 
@@ -66,7 +66,17 @@ Last updated: 2026-10-25, after M3 code and M6.
 | 31 | 14 | `setup()` creates tabs, labels, triggers | `setup()` also removes an empty `Sheet1`, sets the sheet time zone to Asia/Singapore, applies date formats, adds dropdowns and recreates its own four triggers | Needed for a clean sheet | Technical |
 | 32 | 5.1 | Script Properties as listed | Script managed keys added: `NEXT_COVERAGE_ID`, `LAST_SUCCESS_AT`, `CLASSIFIER_FAILS`, `HEARTBEAT_STATE`, `ERROR_EMAIL_AT` | State that survives between runs | Technical |
 
-## G. Risks to record, no spec change needed
+## G. Added after the 2026-11-02 sync
+
+| # | Section | Spec says | Proposed change | Why | Status |
+|---|---|---|---|---|---|
+| 33 | 6.1 and 7.2 | `Logged by` is `script` or a person; the sender of a forward is not stored | Add a `Submitted by` column (the From address of a team forward, blank for alerts) to Coverage and Review Queue | The team will send links from personal addresses and wants to see who submitted each | Needs decision |
+| 34 | 6.1 | All columns are kept | Simplify the sheet by hiding the columns marketing does not need and adding a simple view, rather than deleting them. Which columns to hide is for Ben and Ariel to choose | CLAUDE.md rule 5 forbids deleting or reordering columns | Needs decision |
+| 35 | 19 | Milestones in order M0 to M9 | M4 (capture, name check, Drive) is paused. M7 (backfill, the 4 November import) is pulled ahead of M4, M5 stays next | Owner decision at the 2026-11-02 sync | Decided (Joash, Ben) |
+| 36 | 19 | M9 produces one `HANDOVER.md` | Two guides: a User Guide for marketing and an Internal Maintenance Guide for developers | Owner decision | Decided |
+| 37 | 7.1 and 20 | Central mailbox is media@sedifly.com | The central address is still open: DEV uses `ariel+mediatest@sedifly.com`, and `pr@sedifly.com` is under consideration after Ariel's sender tracking test | Owner decision pending | Needs decision (Ariel) |
+
+## H. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.
 - F5Bot pauses a keyword that fires too often ("daily limit, paused for 24 hours"). Paused keywords send no mail, so mentions are not seen. Surface this in the digest in M5.
