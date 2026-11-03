@@ -100,7 +100,7 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 53 | 12 and 16 | Not stated | Imports never send alerts. A live alert for a link already in the sheet merges as a duplicate and does not alert | Ben's requirement | Needs decision (Ben) |
 | 54 | 16 | Old tracker has one tab | The import covers all 3 tabs of the Old tracker. The mapping for the third tab is not yet known | Ben's requirement | Open (needs the third tab's name and columns) |
 
-| 55 | 5.1 and D3 | Script, Gmail inbox and Drive owned by a Marketing automation account | Recommended: a dedicated Workspace user (for example `media@`) with `pr@` as an alias, not a shared consumer Gmail address (see PROGRESS 2026-11-03 for the issues) | Joash asked whether the existing Sedifly Global Gmail can be used | Needs decision (Joash) |
+| 55 | 5.1 and D3 | Script, Gmail inbox and Drive owned by a Marketing automation account | The existing Sedifly Global account is a Workspace @sedifly.com user, so quotas, aliases and sharing are fine. It is usable for the MVP if: (1) it is not the recovery address for admin, registrar or finance logins, (2) at least two people can pass its two step verification, (3) the plan allows Shared Drives or the sheet is owned by the account. Its mailbox holds login and password reset mail for other services, which the tool's Gmail permission could technically read. Longer term a dedicated user (for example `media@`) with `pr@` as an alias is cleaner. Moving later is cheap: a new PROD project, `setup()`, and re-pointing the alert sources | Joash's question | Needs decision (Joash) |
 
 ## I. Risks to record, no spec change needed
 
