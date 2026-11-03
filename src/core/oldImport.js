@@ -10,6 +10,13 @@ import { CATEGORIES } from './taxonomy.js';
 export const SOURCE_ROUTE = 'Backfill: Old tracker';
 const DAY_MS = 24 * 3600 * 1000;
 export const GROUP_WINDOW_MS = 7 * DAY_MS;
+/**
+ * Short links that are known to be the same post as a full link, as pairs [short, full]. A short link such as lnkd.in cannot be matched
+ * automatically without opening it, so a person confirms each pair and it is added here. The second row then merges into the first as
+ * a duplicate link and both Old rows are kept in Import source.
+ */
+export const KNOWN_SAME_POST = [];
+
 /** One publisher posting the same topic on several platforms happens within a day or two; a week apart is a different post (Ben, 2026-11-04). */
 export const SAME_PUBLISHER_WINDOW_MS = 3 * DAY_MS;
 
@@ -102,8 +109,18 @@ export function parseTab(tab, rows) {
           rec.ms = Date.UTC(y, dm.m - 1, dm.d, 4, 0, 0); // 12:00 Singapore time
           if (dm.y && year && dm.y !== year) {
             out.yearMismatch++;
-            rec.problems.push('date year differs from the heading above');
-            rec.notes.push(`Date check: the date cell says ${rec.dateIso} but the heading above the row says ${year}. Date kept as in the cell, please check`);
+            if (dm.y === year + 1) {
+              // Typed after the new year started, so the cell picked up the next year. Corrected to the heading year by owner
+              // decision (Ben, 2026-11-04), with the original kept in Notes and listed in the report.
+              const original = rec.dateIso;
+              rec.dateIso = `${year}-${String(dm.m).padStart(2, '0')}-${String(dm.d).padStart(2, '0')}`;
+              rec.ms = Date.UTC(year, dm.m - 1, dm.d, 4, 0, 0);
+              rec.problems.push('date year corrected to the heading year');
+              rec.notes.push(`Original date cell: ${original}. Year corrected to ${year} to match the heading above the row (owner decision 2026-11-04)`);
+            } else {
+              rec.problems.push('date year differs from the heading above');
+              rec.notes.push(`Date check: the date cell says ${rec.dateIso} but the heading above the row says ${year}. Date kept as in the cell, please check`);
+            }
           }
         }
       }
@@ -154,7 +171,9 @@ export function planStories(records) {
   const outcomes = { story: 0, placement: 0, duplicate: 0 };
   const duplicates = [];
   for (const rec of sorted) {
-    const norm = rec.url ? normalizeUrl(rec.url) : null;
+    let norm = rec.url ? normalizeUrl(rec.url) : null;
+    const same = norm && KNOWN_SAME_POST.find(([short]) => normalizeUrl(short) === norm);
+    if (same) norm = normalizeUrl(same[1]);
     rec.norm = norm || '';
     if (norm && byUrl.has(norm)) {
       const first = byUrl.get(norm);
@@ -188,6 +207,21 @@ export function planStories(records) {
   return { stories, outcomes, duplicates };
 }
 
+/**
+ * Channel for a Media tab row: News unless the link shows another format (owner decision, Ben 2026-11-04). The report lists every exception.
+ * Social, Reddit and Hacker News links are decided before this runs.
+ */
+export function mediaChannel(url) {
+  const p = parseUrl(url || '');
+  if (!p) return 'News';
+  const host = p.host.replace(/^www\./, '');
+  const path = p.pathname.toLowerCase();
+  if (/(^|\.)(podcasts\.apple\.com|open\.spotify\.com|soundcloud\.com)$/.test(host) || /\/podcasts?(\/|$)/.test(path)) return 'Podcast';
+  if (/^blog\./.test(host) || /\/blogs?\//.test(path) || /^\/post\//.test(path)) return 'Blog';
+  if (/\/videos?(\/|$)/.test(path)) return 'Other';
+  return 'News';
+}
+
 const KIND_SOURCE_TYPE = { media: 'Media', social: 'Social Media', listing: 'Non-Media Listings' };
 
 const importSource = (rec) => [rec.key, ...(rec.alsoAt || [])].join('; ');
@@ -218,6 +252,7 @@ export function toImportedCoverageRow(story, { coverageId, now }) {
   if (r.kind === 'social' && /spotify|apple podcast|podcasts\.apple\.com/i.test(`${r.platform} ${r.url}`)) channel = 'Podcast';
   else if (!channel && r.kind === 'social') channel = 'Social'; // for example youtu.be short links, which are not in the spec domain list
   else if (!channel && r.kind === 'listing') channel = 'Listing';
+  else if (!channel && r.kind === 'media') channel = mediaChannel(r.url);
   return {
     'Coverage ID': coverageId,
     'Detected at': r.ms === null ? '' : new Date(r.ms),
@@ -292,11 +327,21 @@ export function buildReport({ tabs, missing, extra, plan }) {
   const short = tabs.flatMap((t) => t.records).filter((r) => /^https?:\/\/(lnkd\.in|youtu\.be)\//i.test(r.url));
   if (short.length) lines.push(['Short links (lnkd.in, youtu.be) cannot be matched to the full post link without opening them, so a post may appear twice', `${short.length} rows, for example ${short.slice(0, 5).map((r) => r.key).join(', ')}`]);
   lines.push(['', '']);
-  lines.push(['Rows kept for review (nothing is corrected or dropped)', 'Problem', 'Old date text', 'Old link text', 'Outlet', 'Old topic', 'Category in the Old tracker', 'Detail']);
+  const keptRows = tabs.flatMap((t) => t.records).filter((r) => r.problems.some((p) => !/^category "/.test(p)));
+  const byProblem = {};
+  for (const r of keptRows) { const k = r.problems.filter((p) => !/^category "/.test(p)).map(norm).join(' + '); byProblem[k] = (byProblem[k] || 0) + 1; }
+  lines.push(['Rows kept for review, total (each row counted once)', keptRows.length, Object.entries(byProblem).map(([k, n]) => `${n} ${k}`).join('; ')]);
+  lines.push(['Rows kept for review (every flagged date is shown with its original text; nothing is dropped)', 'Problem', 'Old date text', 'Old link text', 'Outlet', 'Old topic', 'Category in the Old tracker', 'Detail']);
   for (const t of tabs) for (const r of t.records) {
     const flagged = r.problems.filter((p) => !/^category "/.test(p));
     if (flagged.length) lines.push([r.key, flagged.join('; '), r.rawDate, r.rawLink, r.outlet, r.topic, r.category, r.notes.join(' ')]);
   }
+  lines.push(['', '']);
+  const media = plan.stories.filter((x) => x.main.kind === 'media');
+  const chan = {};
+  for (const x of media) { const c = mediaChannel(x.main.url); (chan[c] = chan[c] || []).push(x.main); }
+  lines.push(['Media channel: News is the default, other formats are decided by the link', Object.entries(chan).map(([c, v]) => `${c} ${v.length}`).join(', ')]);
+  for (const [c, v] of Object.entries(chan)) if (c !== 'News') for (const r of v.slice(0, 25)) lines.push([`Media channel ${c}`, r.key, r.outlet, r.url]);
   lines.push(['', '']);
   lines.push(['Largest stories', 'Placements', 'First seen', 'Outlet', 'Old topic', 'Link']);
   for (const s of [...plan.stories].sort((a, b) => b.placements.length - a.placements.length).slice(0, 40)) {

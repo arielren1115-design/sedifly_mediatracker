@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { matchTabs, parseTab, planStories, toImportedCoverageRow, toPlacementRow, buildReport, buildPlacementMap, OLD_TABS, slugWords } from '../src/core/oldImport.js';
+import { matchTabs, parseTab, planStories, toImportedCoverageRow, toPlacementRow, buildReport, buildPlacementMap, mediaChannel, KNOWN_SAME_POST, OLD_TABS, slugWords } from '../src/core/oldImport.js';
 import { COVERAGE_HEADERS, PLACEMENT_HEADERS } from '../src/core/schema.js';
 import { makeEnv, goodProps, load, fakeSheet } from './helpers/fakeGas.js';
 
@@ -144,6 +144,60 @@ test('Ameer Ibrahim coverage is Brand whatever the Old tracker said, and the cha
   assert.equal(ameer.Category, 'Brand');
   assert.match(ameer.Notes, /Old category: General, changed to Brand \(owner decision 2026-11-04: Ameer Ibrahim coverage is Brand\)/);
   assert.equal(toImportedCoverageRow(stories[1], { coverageId: 'COV-2', now: new Date(0) }).Category, 'General');
+});
+
+test('a date typed after the new year began (cell is the heading year plus one) is corrected to the heading year, with the original kept', () => {
+  const t = parseTab(MEDIA, [['Date', 'Category', 'Media Name', 'Topic', 'Link'], [2025, '', '', '', ''], [new Date(2026, 9, 27), 'Brand', 'e27.co', 'Pre-Seed', 'https://e27.co/sedifly-nets-oversubscribed-funding-20251027/'], [new Date(2030, 0, 12), 'Brand', 'Odd', 'T', 'https://odd.com/a-b-c']]);
+  const [fixed, odd] = t.records;
+  assert.equal(fixed.dateIso, '2025-10-27');
+  assert.equal(fixed.ms, Date.UTC(2025, 9, 27, 4));
+  assert.deepEqual(fixed.problems, ['date year corrected to the heading year']);
+  assert.match(fixed.notes[0], /Original date cell: 2026-10-27\. Year corrected to 2025/);
+  assert.equal(odd.dateIso, '2030-01-12', 'any other mismatch is kept as written and only flagged');
+  assert.deepEqual(odd.problems, ['date year differs from the heading above']);
+  const { stories } = planStories(t.records);
+  const row = toImportedCoverageRow(stories[0], { coverageId: 'COV-1', now: new Date(0) });
+  assert.equal(row['Published at'], '2025-10-27');
+  assert.equal(row.Verification, 'Needs verification');
+  assert.match(row.Notes, /Original date cell: 2026-10-27/);
+});
+
+test('Media rows default to News; podcasts, blogs and videos are decided by the link; social links stay Social', () => {
+  assert.equal(mediaChannel('https://www.forbes.com/councils/x/2026/10/13/some-article/'), 'News');
+  assert.equal(mediaChannel('https://www.einpresswire.com/article/1/some-press-release-title'), 'News');
+  assert.equal(mediaChannel('https://www.pinevp.com/post/sedifly-the-ai-native-service'), 'Blog');
+  assert.equal(mediaChannel('https://blog.example.com/a-b-c'), 'Blog');
+  assert.equal(mediaChannel('https://podcasts.apple.com/au/podcast/28-how-to-get-into/id1'), 'Podcast');
+  assert.equal(mediaChannel('https://www.yahoo.com/news/videos/democratizing-access-education-sedifly-rethinking-050020446.html'), 'Other');
+  assert.equal(mediaChannel('https://wickedlocal.com/press-release/story/97576/edtech-startup-sedifly-appoints'), 'News');
+  const t = parseTab(MEDIA, mediaRows(['1 March', 'Brand', 'Forbes', 'T', 'https://forbes.com/a/b-c-d'], ['2 March', 'Brand', 'LinkedIn', 'T', 'https://www.linkedin.com/posts/abc']));
+  const { stories } = planStories(t.records);
+  assert.deepEqual(stories.map((x) => toImportedCoverageRow(x, { coverageId: 'C', now: new Date(0) }).Channel), ['News', 'Social']);
+  const rep = buildReport({ tabs: [t], missing: [], extra: [], plan: planStories(parseTab(MEDIA, mediaRows(['2 March', 'Brand', 'Pine', 'T', 'https://www.pinevp.com/post/a-b-c-d'])).records) });
+  assert.ok(rep.lines.some((l) => /^Media channel: News is the default/.test(l[0]) && /Blog 1/.test(l[1])));
+  assert.ok(rep.lines.some((l) => l[0] === 'Media channel Blog'));
+});
+
+test('a confirmed short link merges into the full link as a duplicate; unconfirmed short links stay separate', () => {
+  const full = 'https://www.linkedin.com/posts/entrepreneur-asia-pacific_summit-activity-7501596551694258176-57j3';
+  const rows = [['Date', 'Category', 'Topic', 'Link', 'Publisher', 'Social Media'], ['2026', '', '', '', '', ''], ['4 September', 'Event', 'Summit', 'https://lnkd.in/p/gd9adJA7', 'Entrepreneur', 'LinkedIn'], ['4 September', 'Event', 'Summit', full, 'Entrepreneur', 'LinkedIn']];
+  assert.equal(planStories(parseTab(SOCIAL, rows).records).outcomes.duplicate, 0, 'nothing is assumed');
+  KNOWN_SAME_POST.push(['https://lnkd.in/p/gd9adJA7', full]);
+  try {
+    const plan = planStories(parseTab(SOCIAL, rows).records);
+    assert.deepEqual(plan.outcomes, { story: 1, placement: 0, duplicate: 1 });
+    assert.equal(toImportedCoverageRow(plan.stories[0], { coverageId: 'C', now: new Date(0) })['Import source'], 'Social Media row 3; Social Media row 4');
+  } finally { KNOWN_SAME_POST.pop(); }
+});
+
+test('the report counts the rows kept for review once each, with the reasons that add up', () => {
+  const t = parseTab(MEDIA, [['Date', 'Category', 'Media Name', 'Topic', 'Link'], [2025, '', '', '', ''], [new Date(2026, 9, 27), 'Brand', 'A', 'T', 'https://a.com/a-b-c'], ['', 'Brand', 'B', 'T', ''], ['soon', 'Brand', 'C', 'T', 'see screenshot'], ['5 May', 'Brand', 'D', 'T', 'https://d.com/d-e-f']]);
+  const { lines } = buildReport({ tabs: [t], missing: [], extra: [], plan: planStories(t.records) });
+  const total = lines.find((l) => /^Rows kept for review, total/.test(l[0]));
+  assert.equal(total[1], 3);
+  assert.match(total[2], /1 date year corrected to the heading year/);
+  assert.match(total[2], /1 no date \+ no link/);
+  assert.match(total[2], /1 unreadable date \+ link is not a web address/);
 });
 
 test('missing and unreadable dates and links are kept with their original text, and listed for review', () => {
