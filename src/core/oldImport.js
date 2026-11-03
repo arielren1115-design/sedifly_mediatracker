@@ -8,7 +8,18 @@ import { channelFromUrl } from './channel.js';
 import { CATEGORIES } from './taxonomy.js';
 
 export const SOURCE_ROUTE = 'Backfill: Old tracker';
-export const GROUP_WINDOW_MS = 7 * 24 * 3600 * 1000;
+const DAY_MS = 24 * 3600 * 1000;
+export const GROUP_WINDOW_MS = 7 * DAY_MS;
+/** One publisher posting the same topic on several platforms happens within a day or two; a week apart is a different post (Ben, 2026-11-04). */
+export const SAME_PUBLISHER_WINDOW_MS = 3 * DAY_MS;
+
+/**
+ * Stories whose Old category is overridden by an owner decision. The change is written into Notes so it is never silent.
+ * Add a line here for any further decision. `pattern` is tested against the Old topic and the link.
+ */
+export const CATEGORY_OVERRIDES = [
+  { pattern: /ameer[\s-]+ibrahim/i, category: 'Brand', reason: 'owner decision 2026-11-04: Ameer Ibrahim coverage is Brand' },
+];
 const VALID_CATEGORIES = CATEGORIES.map((c) => c.value);
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
 
@@ -42,6 +53,8 @@ function dayMonth(cell) {
   return mi < 0 ? null : { d: Number(m[1]), m: mi + 1, y: m[3] ? Number(m[3]) : null };
 }
 
+/** What a cell shows, with a real date written as YYYY-MM-DD. */
+const shown = (v) => (v && typeof v.getTime === 'function' && !Number.isNaN(v.getTime()) ? `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}` : clean(v));
 const isYear = (v) => /^20\d\d$/.test(clean(v));
 
 /**
@@ -68,21 +81,31 @@ export function parseTab(tab, rows) {
     const get = (k) => (col[k] >= 0 ? r[col[k]] : '');
     const dm = dayMonth(get('date'));
     const rawUrl = clean(get('url'));
+    const rawDate = shown(get('date'));
     const rec = {
       tab: tab.key, kind: tab.kind, sheetRow, key: `${tab.key} row ${sheetRow}`,
       category: clean(get('category')), outlet: clean(get('outlet')), topic: clean(get('topic')), platform: clean(get('platform')),
-      url: /^https?:\/\//i.test(rawUrl) ? rawUrl : '', rawLink: rawUrl, dateIso: null, ms: null, problems: [],
+      url: /^https?:\/\//i.test(rawUrl) ? rawUrl : '', rawLink: rawUrl, rawDate, dateIso: null, ms: null, problems: [], notes: [],
     };
-    if (clean(get('date')) === '') rec.problems.push('no date');
+    if (rawDate === '') rec.problems.push('no date');
     else if (!dm) rec.problems.push('unreadable date');
-    else if (!year) rec.problems.push('no year heading above the row');
     else {
-      if (dm.y && dm.y !== year) out.yearMismatch++;
-      const check = new Date(Date.UTC(year, dm.m - 1, dm.d));
-      if (check.getUTCMonth() !== dm.m - 1 || check.getUTCDate() !== dm.d) rec.problems.push('impossible date');
+      // Dates are kept as they are in the cell. The heading year is used only when the cell carries no year, and a cell that
+      // disagrees with its heading is flagged for a person, never corrected (Ben, 2026-11-04).
+      const y = dm.y || year;
+      if (!y) rec.problems.push('no year heading above the row');
       else {
-        rec.dateIso = `${year}-${String(dm.m).padStart(2, '0')}-${String(dm.d).padStart(2, '0')}`;
-        rec.ms = Date.UTC(year, dm.m - 1, dm.d, 4, 0, 0); // 12:00 Singapore time
+        const check = new Date(Date.UTC(y, dm.m - 1, dm.d));
+        if (check.getUTCMonth() !== dm.m - 1 || check.getUTCDate() !== dm.d) rec.problems.push('impossible date');
+        else {
+          rec.dateIso = `${y}-${String(dm.m).padStart(2, '0')}-${String(dm.d).padStart(2, '0')}`;
+          rec.ms = Date.UTC(y, dm.m - 1, dm.d, 4, 0, 0); // 12:00 Singapore time
+          if (dm.y && year && dm.y !== year) {
+            out.yearMismatch++;
+            rec.problems.push('date year differs from the heading above');
+            rec.notes.push(`Date check: the date cell says ${rec.dateIso} but the heading above the row says ${year}. Date kept as in the cell, please check`);
+          }
+        }
       }
     }
     if (!rec.url) rec.problems.push(rawUrl ? 'link is not a web address' : 'no link');
@@ -103,15 +126,16 @@ export function slugWords(url) {
 
 const sentence = (words) => { const t = words.join(' ').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 
+/** The ways a record can join a story: a key, how to describe the match, and how far apart in time the posts may be. */
 function groupKeys(rec) {
   const keys = [];
   if (rec.kind === 'media') {
     const w = slugWords(rec.url);
-    if (w.length >= 5) keys.push(`h:${w.join('').toLowerCase()}`);
+    if (w.length >= 5) keys.push({ key: `h:${w.join('').toLowerCase()}`, rule: 'same headline in the link (5 or more words)', windowMs: GROUP_WINDOW_MS });
   } else if (rec.kind === 'social' && rec.topic) {
     const t = rec.topic.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    if (t.split(' ').length >= 5) keys.push(`t:${t}`);
-    if (rec.outlet) keys.push(`p:${rec.outlet.toLowerCase()}|${t}`); // the same publisher posting the same topic on several platforms
+    if (t.split(' ').length >= 5) keys.push({ key: `t:${t}`, rule: 'same long topic (5 or more words)', windowMs: GROUP_WINDOW_MS });
+    if (rec.outlet) keys.push({ key: `p:${rec.outlet.toLowerCase()}|${t}`, rule: 'same publisher and topic within 3 days (one post on several platforms)', windowMs: SAME_PUBLISHER_WINDOW_MS });
   }
   return keys;
 }
@@ -128,6 +152,7 @@ export function planStories(records) {
   const byKey = new Map();
   const stories = [];
   const outcomes = { story: 0, placement: 0, duplicate: 0 };
+  const duplicates = [];
   for (const rec of sorted) {
     const norm = rec.url ? normalizeUrl(rec.url) : null;
     rec.norm = norm || '';
@@ -135,14 +160,16 @@ export function planStories(records) {
       const first = byUrl.get(norm);
       (first.alsoAt = first.alsoAt || []).push(rec.key);
       rec.outcome = 'duplicate';
+      rec.duplicateOf = first.key;
+      duplicates.push(rec);
       outcomes.duplicate++;
       continue;
     }
     let target = null;
     if (rec.ms !== null) {
       for (const k of groupKeys(rec)) {
-        target = (byKey.get(k) || []).find((s) => s.main.ms !== null && Math.abs(rec.ms - s.main.ms) <= GROUP_WINDOW_MS) || null;
-        if (target) break;
+        target = (byKey.get(k.key) || []).find((s) => s.main.ms !== null && Math.abs(rec.ms - s.main.ms) <= k.windowMs) || null;
+        if (target) { rec.matchRule = k.rule; break; }
       }
     }
     if (target) {
@@ -154,11 +181,11 @@ export function planStories(records) {
       stories.push(story);
       rec.outcome = 'story';
       outcomes.story++;
-      for (const k of groupKeys(rec)) { if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(story); }
+      for (const k of groupKeys(rec)) { if (!byKey.has(k.key)) byKey.set(k.key, []); byKey.get(k.key).push(story); }
     }
     if (norm) byUrl.set(norm, rec);
   }
-  return { stories, outcomes };
+  return { stories, outcomes, duplicates };
 }
 
 const KIND_SOURCE_TYPE = { media: 'Media', social: 'Social Media', listing: 'Non-Media Listings' };
@@ -175,10 +202,17 @@ export function toImportedCoverageRow(story, { coverageId, now }) {
   const words = r.kind === 'media' ? slugWords(r.url) : [];
   const notes = [];
   if (r.topic) notes.push(`Old topic: ${r.topic}`);
-  if (r.category && !VALID_CATEGORIES.includes(r.category)) notes.push(`Old category: ${r.category}`);
+  let category = VALID_CATEGORIES.includes(r.category) ? r.category : '';
+  if (r.category && !category) notes.push(`Old category: ${r.category}`);
+  const override = CATEGORY_OVERRIDES.find((o) => o.pattern.test(`${r.topic} ${r.url}`));
+  if (override && category !== override.category) {
+    notes.push(`Old category: ${r.category || 'blank'}, changed to ${override.category} (${override.reason})`);
+    category = override.category;
+  }
   if (r.kind === 'media' && words.length >= 3) notes.push('Title taken from the URL');
   if (r.platform) notes.push(`Platform: ${r.platform}`);
-  if (!r.dateIso) notes.push('No usable date in the Old tracker');
+  if (!r.dateIso) notes.push(r.rawDate ? `Old date text: ${r.rawDate}` : 'No date in the Old tracker');
+  notes.push(...r.notes);
   if (!r.url) notes.push(r.rawLink ? `Old link text: ${r.rawLink}` : 'No link in the Old tracker');
   let channel = channelFromUrl(r.url) || '';
   if (r.kind === 'social' && /spotify|apple podcast|podcasts\.apple\.com/i.test(`${r.platform} ${r.url}`)) channel = 'Podcast';
@@ -194,7 +228,7 @@ export function toImportedCoverageRow(story, { coverageId, now }) {
     Title: r.kind === 'social' && r.topic.split(' ').length >= 5 ? r.topic : words.length >= 3 ? sentence(words) : '',
     URL: r.url,
     'Normalised URL': r.norm,
-    Category: VALID_CATEGORIES.includes(r.category) ? r.category : '',
+    Category: category,
     'Archive status': 'Pending',
     'Found in': 'Old',
     Verification: 'Needs verification',
@@ -252,10 +286,17 @@ export function buildReport({ tabs, missing, extra, plan }) {
   lines.push(['', '']);
   lines.push(['Things to look at', 'Rows']);
   const problems = {};
-  for (const t of tabs) for (const r of t.records) for (const p of r.problems) (problems[p.replace(/"[^"]*"/, '"..."')] = problems[p.replace(/"[^"]*"/, '"..."')] || []).push(r.key);
+  const norm = (p) => p.replace(/"[^"]*"/, '"..."');
+  for (const t of tabs) for (const r of t.records) for (const p of r.problems) (problems[norm(p)] = problems[norm(p)] || []).push(r.key);
   for (const [p, keys] of Object.entries(problems)) lines.push([p, `${keys.length} rows, for example ${keys.slice(0, 5).join(', ')}`]);
-  const mism = tabs.reduce((n, t) => n + t.yearMismatch, 0);
-  if (mism) lines.push(['Date cell has a different year from the heading above it (heading used)', `${mism} rows`]);
+  const short = tabs.flatMap((t) => t.records).filter((r) => /^https?:\/\/(lnkd\.in|youtu\.be)\//i.test(r.url));
+  if (short.length) lines.push(['Short links (lnkd.in, youtu.be) cannot be matched to the full post link without opening them, so a post may appear twice', `${short.length} rows, for example ${short.slice(0, 5).map((r) => r.key).join(', ')}`]);
+  lines.push(['', '']);
+  lines.push(['Rows kept for review (nothing is corrected or dropped)', 'Problem', 'Old date text', 'Old link text', 'Outlet', 'Old topic', 'Category in the Old tracker', 'Detail']);
+  for (const t of tabs) for (const r of t.records) {
+    const flagged = r.problems.filter((p) => !/^category "/.test(p));
+    if (flagged.length) lines.push([r.key, flagged.join('; '), r.rawDate, r.rawLink, r.outlet, r.topic, r.category, r.notes.join(' ')]);
+  }
   lines.push(['', '']);
   lines.push(['Largest stories', 'Placements', 'First seen', 'Outlet', 'Old topic', 'Link']);
   for (const s of [...plan.stories].sort((a, b) => b.placements.length - a.placements.length).slice(0, 40)) {
@@ -269,4 +310,18 @@ export function buildReport({ tabs, missing, extra, plan }) {
     for (const s of social) lines.push([s.main.key, s.placements.length, s.main.dateIso || '', s.main.outlet, s.main.topic, [s.main, ...s.placements].map((r) => r.platform).join(', ')]);
   }
   return { lines, balanced };
+}
+
+/**
+ * Every placement and every duplicate link with the story it would join, for the owners to confirm before anything is imported.
+ * @returns {string[][]} lines for the Import Placement Map tab
+ */
+export function buildPlacementMap(plan) {
+  const lines = [['Kind', 'Old row', 'Outlet', 'Link', 'Date', 'Joins story (Old row)', 'Story outlet', 'Story link', 'Story date', 'Days from story', 'Why']];
+  const days = (a, b) => (a.ms === null || b.ms === null ? '' : Math.round((a.ms - b.ms) / 86400000));
+  for (const s of plan.stories) {
+    for (const p of s.placements) lines.push(['Placement', p.key, p.outlet, p.url, p.dateIso || '', s.main.key, s.main.outlet, s.main.url, s.main.dateIso || '', days(p, s.main), p.matchRule || '']);
+  }
+  for (const d of plan.duplicates) lines.push(['Duplicate link', d.key, d.outlet, d.url, d.dateIso || '', d.duplicateOf, '', '', '', '', 'same link as the row on the left (merged, both rows kept in Import source)']);
+  return lines;
 }

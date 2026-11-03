@@ -110,6 +110,11 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 60 | 16 | Not stated | Cut-over: Old tracker frozen 4 November 10:00 SGT, snapshot copy imported, new coverage through the tool's intake | Ben's decision | Decided (Ben) |
 | 61 | 6.2 | Approve sets `Verified` | Superseded by item 22: approval does not verify | Ben, 2026-11-04 | Decided (Ben) |
 
+| 62 | 16 | Not stated | Old dates are imported as written; the heading year is used only when a cell has no year; a cell that disagrees with its heading is flagged, never corrected. Rows with missing or unreadable dates and links are kept with the original text and listed for review | Ben, 2026-11-04 | Decided (Ben) |
+| 63 | 16 | Not stated | Category override by decision: Ameer Ibrahim coverage is Brand, recorded in Notes | Ben, 2026-11-04 | Decided (Ben) |
+| 64 | 8.2 and 16 | Same headline within 7 days groups | For social posts by the same publisher and topic the window is 3 days (one post on several platforms); a same long topic still groups within 7 days | Two posts a week apart are not one post | Decided (Ben) |
+| 65 | 16 | Not stated | The dry run writes an Import Placement Map tab listing every placement and duplicate link with the story it joins, for confirmation before import | Ben, 2026-11-04 | Decided (Ben) |
+
 ## I. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { matchTabs, parseTab, planStories, toImportedCoverageRow, toPlacementRow, buildReport, OLD_TABS, slugWords } from '../src/core/oldImport.js';
+import { matchTabs, parseTab, planStories, toImportedCoverageRow, toPlacementRow, buildReport, buildPlacementMap, OLD_TABS, slugWords } from '../src/core/oldImport.js';
 import { COVERAGE_HEADERS, PLACEMENT_HEADERS } from '../src/core/schema.js';
 import { makeEnv, goodProps, load, fakeSheet } from './helpers/fakeGas.js';
 
@@ -24,8 +24,10 @@ test('year headings, blank rows and data rows are each counted; the year comes f
   assert.equal(t.records.length, 2);
   assert.equal(t.records[0].dateIso, '2025-10-27');
   assert.equal(t.records[0].sheetRow, 3);
-  assert.equal(t.records[1].dateIso, '2026-01-12', 'a date cell with another year gets the heading year');
+  assert.equal(t.records[1].dateIso, '2030-01-12', 'a date cell is kept as it is, never corrected to the heading year');
   assert.equal(t.yearMismatch, 1);
+  assert.deepEqual(t.records[1].problems, ['date year differs from the heading above']);
+  assert.match(t.records[1].notes[0], /cell says 2030-01-12 but the heading above the row says 2026/);
   assert.equal(t.records[0].ms, Date.UTC(2025, 9, 27, 4, 0, 0), '12:00 Singapore time');
 });
 
@@ -120,6 +122,55 @@ test('slug words ignore ids, extensions and query strings', () => {
   assert.deepEqual(slugWords('https://x.com/'), []);
 });
 
+test('the same publisher and topic on several platforms groups within 3 days; a week apart stays a separate story', () => {
+  const rows = [['Date', 'Category', 'Topic', 'Link', 'Publisher', 'Social Media'], ['2026', '', '', '', '', ''],
+    ['28 July', 'Event', 'HBSo Miami Chapter Webinar', 'https://www.linkedin.com/posts/g1', 'Giovanni', 'LinkedIn'],
+    ['4 August', 'Event', 'HBSo Miami Chapter Webinar', 'https://www.linkedin.com/posts/g2', 'Giovanni', 'LinkedIn'],
+    ['4 September', 'Event', 'Summit', 'https://lnkd.in/p/abc', 'Entrepreneur', 'LinkedIn'],
+    ['4 September', 'Event', 'Summit', 'https://www.linkedin.com/posts/e2', 'Entrepreneur', 'LinkedIn'],
+    ['5 September', 'Event', 'Summit', 'https://www.facebook.com/e/3', 'Entrepreneur', 'Facebook']];
+  const t = parseTab(SOCIAL, rows);
+  const { stories } = planStories(t.records);
+  assert.deepEqual(stories.map((x) => x.placements.length), [0, 0, 2], 'the two Giovanni posts a week apart are two stories');
+  assert.equal(stories[2].placements[0].matchRule, 'same publisher and topic within 3 days (one post on several platforms)');
+  const rep = buildReport({ tabs: [t], missing: [], extra: [], plan: planStories(parseTab(SOCIAL, rows).records) });
+  assert.ok(rep.lines.some((l) => /Short links/.test(l[0])), 'lnkd.in links are flagged');
+});
+
+test('Ameer Ibrahim coverage is Brand whatever the Old tracker said, and the change is written in Notes', () => {
+  const t = parseTab(MEDIA, mediaRows(['20 August', 'General', 'KTLA-TV', 'Sedifly Appoints Callian Capital Group Managing Partner Ameer Ibrahim as a Board Advisor', 'https://www.ktla.com/business/press-releases/globenewswire/9813485/sedifly-appoints-callian-capital-group-managing-partner-ameer-ibrahim-as-a-board-advisor'], ['20 August', 'General', 'Other', 'AI', 'https://x.com/news/some-other-story-about-nothing-here']));
+  const { stories } = planStories(t.records);
+  const ameer = toImportedCoverageRow(stories[0], { coverageId: 'COV-1', now: new Date(0) });
+  assert.equal(ameer.Category, 'Brand');
+  assert.match(ameer.Notes, /Old category: General, changed to Brand \(owner decision 2026-11-04: Ameer Ibrahim coverage is Brand\)/);
+  assert.equal(toImportedCoverageRow(stories[1], { coverageId: 'COV-2', now: new Date(0) }).Category, 'General');
+});
+
+test('missing and unreadable dates and links are kept with their original text, and listed for review', () => {
+  const t = parseTab(MEDIA, mediaRows(['soon', 'Brand', 'X', 'T', 'see screenshot'], ['', 'Brand', 'Y', 'T', 'https://y.com/a-b-c']));
+  const { stories } = planStories(t.records);
+  const notes = stories.map((s) => toImportedCoverageRow(s, { coverageId: 'C', now: new Date(0) }).Notes);
+  assert.ok(notes.some((n) => /Old date text: soon/.test(n) && /Old link text: see screenshot/.test(n)));
+  assert.ok(notes.some((n) => /No date in the Old tracker/.test(n)));
+  const rep = buildReport({ tabs: [t], missing: [], extra: [], plan: planStories(parseTab(MEDIA, mediaRows(['soon', 'Brand', 'X', 'T', 'see screenshot'], ['', 'Brand', 'Y', 'T', 'https://y.com/a-b-c'])).records) });
+  const kept = rep.lines.filter((l) => /^Media row/.test(l[0]) && l[1]);
+  assert.equal(kept.length, 2);
+  assert.ok(kept.some((l) => l[2] === 'soon' && l[3] === 'see screenshot'));
+});
+
+test('the placement map lists every placement with its story, the days apart and the rule, plus every duplicate link', () => {
+  const t = parseTab(MEDIA, mediaRows(['19 January', 'Event', 'EIN Presswire', 'T', PR('world.einnews.com')], ['20 January', 'Event', 'Wicked Local', 'T', PR('wickedlocal.com')], ['19 January', 'Event', 'EIN Presswire', 'T', PR('world.einnews.com')]));
+  const plan = planStories(t.records);
+  const map = buildPlacementMap(plan);
+  assert.deepEqual(map[0].slice(0, 2), ['Kind', 'Old row']);
+  const place = map.find((l) => l[0] === 'Placement');
+  assert.deepEqual([place[1], place[5], place[9], place[10]], ['Media row 4', 'Media row 3', 1, 'same headline in the link (5 or more words)']);
+  const dup = map.find((l) => l[0] === 'Duplicate link');
+  assert.equal(dup[1], 'Media row 5');
+  assert.equal(dup[5], 'Media row 3');
+  assert.equal(map.length, 3);
+});
+
 // ---- through the built bundle ----
 const sheetOf = (name, rows) => { const s = fakeSheet(name); rows.forEach((r) => s.rows.push(r)); return s; };
 async function ready(extra = {}) {
@@ -147,6 +198,7 @@ test('dry run writes only the Import Report tab; nothing reaches Coverage; the o
   assert.equal(r.status, 'OK');
   assert.equal(env.sheets.x.Coverage.rows.length, 1);
   assert.equal(env.sheets.x['Syndicated Placements'].rows.length, 1);
+  assert.ok(env.sheets.x['Import Placement Map'].rows.length > 1, 'the placement map is written for confirmation');
   const rep = env.sheets.x['Import Report'].rows;
   assert.equal(rep[0][0], 'Old tracker import report');
   assert.ok(rep.some((l) => l[0] === 'All tabs' && l[8] === 'yes'));

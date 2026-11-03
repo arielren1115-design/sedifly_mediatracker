@@ -3,7 +3,7 @@ import { appendObjects, assertTabsReady, readIndexRows } from '../gas/sheets.js'
 import { allocateCoverageIds } from '../gas/coverageIds.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { loadOldPlan, writeReportTab, readImportedState } from '../gas/oldImport.js';
-import { buildReport, toImportedCoverageRow, toPlacementRow } from '../core/oldImport.js';
+import { buildReport, buildPlacementMap, toImportedCoverageRow, toPlacementRow } from '../core/oldImport.js';
 
 const BATCH_STORIES = 250;
 
@@ -31,6 +31,7 @@ export function importOldDryRun() {
     const shared = plan.stories.filter((s) => s.main.norm && liveNorms.has(s.main.norm)).length;
     lines.splice(1, 0, ['Coverage rows already in the sheet before this import', live.length], ['Old stories whose link is already in Coverage (would be duplicated)', shared]);
     writeReportTab(ss, lines);
+    writeReportTab(ss, buildPlacementMap(plan), 'Import Placement Map'); // every placement and the story it would join, for confirmation
     const note = `Dry run: ${plan.outcomes.story} stories, ${plan.outcomes.placement} placements, ${plan.outcomes.duplicate} duplicate links. ${balanced ? 'Every row accounted for.' : 'ROWS DO NOT ADD UP.'}`;
     appendRunLog(ss, { runId: Utilities.getUuid(), fn: 'importOldDryRun', startedAt, durationMs: Date.now() - startedAt.getTime(), summary: { note }, status: balanced ? 'OK' : 'FAILED' });
     log(note);
