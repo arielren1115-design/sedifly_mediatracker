@@ -95,3 +95,16 @@ test('an audit link already in Coverage is skipped and reported', async () => {
   assert.ok(rep.some((l) => l[1] === 'in tracker' && /COV-000003/.test(l[2])));
   assert.equal(run('importAudit()').added, 9);
 });
+
+test('the audit can also be a Google Sheet, with real date cells', async () => {
+  const { env, run } = await ready({ AUDIT_FILE_ID: 'sheetfile', IMPORT_CONFIRMED: 'YES' });
+  const rows = parseCsv(TEXT);
+  rows[1][0] = new Date(2025, 9, 27); // a sheet that turned the text into a date
+  env.state.files.sheetfile = { name: 'Sedifly Historical Media Audit Findings', rows };
+  env.sheets.sheetfile = { Audit: sheetWith(rows) };
+  assert.equal(run('importAudit()').added, 10);
+  const cov = env.sheets.x.Coverage;
+  assert.equal(cov.rows[1][col(cov, 'Published at')], '2025-10-27');
+  assert.equal(cov.rows[1][col(cov, 'Import source')], 'Audit row 2', 'no date in the file name, so no tag');
+});
+function sheetWith(rows) { const s = fakeSheet('Audit'); rows.forEach((r) => s.rows.push(r)); return s; }

@@ -12,7 +12,11 @@ function loadAuditPlan(ss) {
   const id = getProp('AUDIT_FILE_ID');
   if (!id || id.startsWith(PLACEHOLDER)) throw new Error('AUDIT_FILE_ID is not set. Set it to the Drive file ID of the audit CSV.');
   const file = DriveApp.getFileById(id);
-  const parsed = parseAudit(file.getBlob().getDataAsString('UTF-8'), { fileName: file.getName(), entityNames: loadMonitoredEntities().map((e) => e.name) });
+  // The audit can be a CSV file or a Google Sheet (its first tab). Either way it is only read.
+  const input = file.getMimeType() === 'application/vnd.google-apps.spreadsheet'
+    ? SpreadsheetApp.openById(id).getSheets()[0].getDataRange().getValues()
+    : file.getBlob().getDataAsString('UTF-8');
+  const parsed = parseAudit(input, { fileName: file.getName(), entityNames: loadMonitoredEntities().map((e) => e.name) });
   if (parsed.error) throw new Error(parsed.error);
   const existing = new Map();
   for (const r of readIndexRows(ss)) if (r.sheet === 'Coverage' && r.normalisedUrl && r.coverageId) existing.set(r.normalisedUrl, r.coverageId);

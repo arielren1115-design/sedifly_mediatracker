@@ -8,17 +8,21 @@ import { CATEGORIES, SOURCE_TYPES } from './taxonomy.js';
 export const AUDIT_ROUTE = 'Backfill: audit';
 const CATS = CATEGORIES.map((c) => c.value);
 const TYPES = SOURCE_TYPES.map((t) => t.value);
-const clean = (v) => String(v === null || v === undefined ? '' : v).replace(/\s+/g, ' ').trim();
+/** A sheet may hand back a real date for 2025-10-27; turn it back into the text form. */
+const clean = (v) => {
+  if (v && typeof v.getTime === 'function') return Number.isNaN(v.getTime()) ? '' : `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`;
+  return String(v === null || v === undefined ? '' : v).replace(/\s+/g, ' ').trim();
+};
 
 /** A short tag for the file, so two audits never share Import source keys. */
-export const auditTag = (fileName) => (/(\d{4}-\d{2}-\d{2})/.exec(String(fileName || '')) || [])[1] || 'audit';
+export const auditTag = (fileName) => (/(\d{4}-\d{2}-\d{2})/.exec(String(fileName || '')) || [])[1] || '';
 
 /**
- * @param {string} text CSV text with the header row: date, URL, outlet, title/topic, source type, category, entity, review status
+ * @param {string|any[][]} input CSV text, or the rows of a Google Sheet, with the header row: date, URL, outlet, title/topic, source type, category, entity, review status
  * @param {{fileName: string, entityNames: string[]}} ctx
  */
-export function parseAudit(text, { fileName, entityNames }) {
-  const rows = parseCsv(text);
+export function parseAudit(input, { fileName, entityNames }) {
+  const rows = Array.isArray(input) ? input : parseCsv(input);
   const header = (rows[0] || []).map((h) => clean(h).toLowerCase());
   const at = (n) => header.indexOf(n);
   const col = { date: at('date'), url: at('url'), outlet: at('outlet'), title: at('title/topic'), type: at('source type'), category: at('category'), entity: at('entity') };
@@ -28,7 +32,7 @@ export function parseAudit(text, { fileName, entityNames }) {
   const records = rows.slice(1).map((r, i) => {
     const get = (k) => clean(r[col[k]]);
     const n = i + 2;
-    const rec = { n, key: `Audit ${tag} row ${n}`, dateIso: null, ms: null, url: get('url'), outlet: get('outlet'), title: get('title'), sourceType: get('type'), category: get('category'), entity: get('entity'), problems: [] };
+    const rec = { n, key: tag ? `Audit ${tag} row ${n}` : `Audit row ${n}`, dateIso: null, ms: null, url: get('url'), outlet: get('outlet'), title: get('title'), sourceType: get('type'), category: get('category'), entity: get('entity'), problems: [] };
     const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(get('date'));
     const real = d && new Date(Date.UTC(Number(d[1]), Number(d[2]) - 1, Number(d[3])));
     if (d && real.getUTCMonth() === Number(d[2]) - 1 && real.getUTCDate() === Number(d[3])) { rec.dateIso = get('date'); rec.ms = Date.UTC(Number(d[1]), Number(d[2]) - 1, Number(d[3]), 4, 0, 0); } else if (get('date')) rec.problems.push(`date "${get('date')}" is not a real YYYY-MM-DD date`);

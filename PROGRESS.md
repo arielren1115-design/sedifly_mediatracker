@@ -382,3 +382,7 @@ Ben agreed with the proposals and sent the Google Sheets copy of the Old tracker
 Production blocker: the production project and account do not exist yet (Joash's account decision). The same steps work on DEV today.
 
 Tests: 288 passing.
+
+### 2026-11-04: dry run reviewed, audit file is now a Google Sheet
+- **Old tracker dry run (DEV, copy of 3 November):** 5,891 data rows from the three tabs become 631 stories, 5,221 placements and 39 duplicate links, and the report says every row adds up. Media: 5,806 rows, 564 stories, 5,203 placements. Social Media: 68 rows, 50 stories, 18 placements (the grouped social stories are listed in the report for Ben to confirm). Non Media Listings: 17 rows, 17 stories. The DEV sheet had 11 test rows and none share a link with the Old tracker.
+- **Audit:** Ben replaced the CSV with a Google Sheet (`Sedifly Historical Media Audit Findings`, same 10 rows, not in the Trash). The audit import reads either a CSV or a Google Sheet (first tab). Script Property `AUDIT_FILE_ID` = the sheet's ID. Without a date in the file name the Import source reads `Audit row N`.
