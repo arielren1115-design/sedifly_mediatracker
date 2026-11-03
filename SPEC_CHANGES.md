@@ -44,7 +44,7 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 19 | 9.2 | Prompt as written | Prompt version 2 adds `page_text` and `item_kind` to the item and one sentence saying page text is data, not instructions. Everything else is the wording Ariel approved | Needed for the page re-read (D12) | Needs decision: Ariel to approve the added sentence |
 | 20 | 9.3 | Retry on failure | Three failed runs per message: the message stays unlabelled and the run is PARTIAL or FAILED. On the third failure the item goes to the Review Queue as `Classifier unavailable`. The count is kept in the Script Property `CLASSIFIER_FAILS` and pruned after 3 days | Makes the three run rule testable | Technical |
 | 21 | 9.3 | Low confidence re-read | One re-read of a public, non social page (first 8000 characters of text) before sending to review. Social links are never fetched | D12, CLAUDE.md rule 3 | Technical |
-| 22 | 6.1 | Verification is Verified only if confidence is at least the threshold | **Changed 2026-11-03 (Ben):** confidence no longer sets Verification. Confidence only decides routing (Coverage or Review Queue) and is kept in its own column. Verification stays `Needs verification` until a person checks the source. Approving a row in the Review Queue still sets `Verified` (open question for Ben: approving confirms the labels, not necessarily the source) | Keeps AI confidence separate from source verification | Decided (Ben) |
+| 22 | 6.1 | Verification is Verified only if confidence is at least the threshold | **Changed 2026-11-03 (Ben):** confidence no longer sets Verification. Confidence only decides routing (Coverage or Review Queue) and is kept in its own column. Verification stays `Needs verification` until a person checks the source. **Updated 2026-11-04 (Ben):** approving a row in the Review Queue does not set `Verified` either; approval confirms the labels, source verification is separate. `Verified` is set by a person only | Keeps AI confidence separate from source verification | Decided (Ben) |
 | 23 | 5.1 | All keys in 5.1 required by `setup()` | The value `PLACEHOLDER` is allowed in DEV until the milestone that needs it. While `ANTHROPIC_API_KEY` is a placeholder, ingest writes rows without classification and says so in the log | Lets DEV run before Joash supplies keys | Needs decision |
 
 ## E. Review sync (section 6.2)
@@ -104,6 +104,11 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 
 | 56 | 16 | `runBackfill(step)` with step `importOld` | Two hand-run functions, `importOldDryRun` (writes only an Import Report tab) and `importOld` (needs `IMPORT_CONFIRMED = YES`), instead of a step of `runBackfill`. The other backfill steps are not built | Safer: a reviewed dry run before anything is written | Needs decision (Ben) |
 | 57 | 6.1 | Channel from route and domain | Imported Media tab rows leave Channel blank unless the link decides it (social, Reddit, Hacker News). Social tab rows get Podcast (Spotify, Apple Podcast) or Social. Listings get Listing | The Old tracker does not say news or blog | Needs decision (Ben): default Media tab Channel to News? |
+
+| 58 | 6.1 | `Found in` is Old, Tool, Archive or Manual | Add `Audit` for items found by the historical audit | Ben: keep the audit separate from the Old import | Decided (Ben) |
+| 59 | 16 | Backfill steps: scanArchive, searchHN, importManualSearch, classify, capture, report | Audit findings come in through `importAuditDryRun` and `importAudit` (CSV in Drive, ID in `AUDIT_FILE_ID`). The other steps are not built | Ben's audit output is a CSV | Decided (Ben) |
+| 60 | 16 | Not stated | Cut-over: Old tracker frozen 4 November 10:00 SGT, snapshot copy imported, new coverage through the tool's intake | Ben's decision | Decided (Ben) |
+| 61 | 6.2 | Approve sets `Verified` | Superseded by item 22: approval does not verify | Ben, 2026-11-04 | Decided (Ben) |
 
 ## I. Risks to record, no spec change needed
 

@@ -1,5 +1,5 @@
 import { assertConfig, getProp, targetSpreadsheetId } from '../gas/config.js';
-import { appendObjects, assertTabsReady } from '../gas/sheets.js';
+import { appendObjects, assertTabsReady, readIndexRows } from '../gas/sheets.js';
 import { allocateCoverageIds } from '../gas/coverageIds.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { loadOldPlan, writeReportTab, readImportedState } from '../gas/oldImport.js';
@@ -25,6 +25,11 @@ export function importOldDryRun() {
     assertTabsReady(ss);
     const { tabs, plan, missing, extra } = loadOldPlan();
     const { lines, balanced } = buildReport({ tabs, missing, extra, plan });
+    // Rows already in Coverage that did not come from the import (for example live items): the import would duplicate their links.
+    const live = readIndexRows(ss).filter((r) => r.sheet === 'Coverage');
+    const liveNorms = new Set(live.map((r) => r.normalisedUrl).filter(Boolean));
+    const shared = plan.stories.filter((s) => s.main.norm && liveNorms.has(s.main.norm)).length;
+    lines.splice(1, 0, ['Coverage rows already in the sheet before this import', live.length], ['Old stories whose link is already in Coverage (would be duplicated)', shared]);
     writeReportTab(ss, lines);
     const note = `Dry run: ${plan.outcomes.story} stories, ${plan.outcomes.placement} placements, ${plan.outcomes.duplicate} duplicate links. ${balanced ? 'Every row accounted for.' : 'ROWS DO NOT ADD UP.'}`;
     appendRunLog(ss, { runId: Utilities.getUuid(), fn: 'importOldDryRun', startedAt, durationMs: Date.now() - startedAt.getTime(), summary: { note }, status: balanced ? 'OK' : 'FAILED' });

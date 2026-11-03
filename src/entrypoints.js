@@ -12,3 +12,5 @@ function simpleView() { return App.simpleView(); } // run by hand: hide the tech
 function fullView() { return App.fullView(); } // run by hand: show every column
 function importOldDryRun() { return App.importOldDryRun(); } // run by hand: writes only the Import Report tab
 function importOld() { return App.importOld(); } // run by hand after the dry run is reviewed and IMPORT_CONFIRMED is YES
+function importAuditDryRun() { return App.importAuditDryRun(); } // run by hand: writes only the Audit Report tab
+function importAudit() { return App.importAudit(); } // run by hand after the audit dry run is reviewed and IMPORT_CONFIRMED is YES

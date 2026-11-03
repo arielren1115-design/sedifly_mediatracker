@@ -31,11 +31,11 @@ test('an approved link already in Coverage, or approved twice, is not copied twi
   assert.deepEqual([q.approve.length, q.alreadyThere], [1, [3]]);
 });
 
-test('the approved Coverage row keeps human edits, gets a new id and is Verified', () => {
+test('the approved Coverage row keeps human edits, gets a new id and is still Needs verification', () => {
   const r = approvedCoverageRow({ Category: 'Event', Entity: 'Sedifly', 'Review reason': 'Low confidence', Decision: 'Approve', Verification: 'Needs verification', 'Coverage ID': '' }, { coverageId: 'COV-000009', now: new Date(0), norm: 'https://x.com/a' });
   assert.equal(r.Category, 'Event');
   assert.equal(r['Coverage ID'], 'COV-000009');
-  assert.equal(r.Verification, 'Verified');
+  assert.equal(r.Verification, 'Needs verification');
   assert.equal('Review reason' in r, false);
   assert.equal('Decision' in r, false);
 });
@@ -61,7 +61,7 @@ test('runReviewSync through the built bundle: approve, reject, run again', async
   const cov = env.sheets.x.Coverage; const rq = env.sheets.x['Review Queue'];
   assert.equal(cov.rows.length, 2);
   assert.equal(cell(cov, 1, 'Coverage ID'), 'COV-000005');
-  assert.equal(cell(cov, 1, 'Verification'), 'Verified');
+  assert.equal(cell(cov, 1, 'Verification'), 'Needs verification', 'approving confirms the labels, not the source');
   assert.equal(typeof cell(rq, 1, 'Synced at').getTime, 'function');
   assert.equal(typeof cell(rq, 2, 'Synced at').getTime, 'function');
   assert.equal(cell(rq, 3, 'Synced at'), '');

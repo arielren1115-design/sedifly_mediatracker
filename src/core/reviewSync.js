@@ -33,12 +33,12 @@ export function planReviewSync(rows, coverage) {
 }
 
 /**
- * The Coverage row for an approved item: the human edited values, a new ID, Verified.
+ * The Coverage row for an approved item: the human edited values, a new ID. Approving confirms the labels only: Verification stays Needs verification until a person checks the source (Ben, 2026-11-04).
  * @param {Object<string, any>} values Review Queue row values
  * @returns {Object<string, any>}
  */
 export function approvedCoverageRow(values, { coverageId, now, norm }) {
   const row = {};
   for (const h of COVERAGE_HEADERS) if (!blank(values[h])) row[h] = values[h];
-  return { ...row, 'Coverage ID': coverageId, 'Normalised URL': norm || row['Normalised URL'] || '', Verification: 'Verified', 'Found in': 'Tool', 'Last updated': now };
+  return { ...row, 'Coverage ID': coverageId, 'Normalised URL': norm || row['Normalised URL'] || '', Verification: 'Needs verification', 'Found in': 'Tool', 'Last updated': now };
 }

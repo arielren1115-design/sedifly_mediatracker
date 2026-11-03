@@ -109,6 +109,7 @@ export function makeEnv(props) {
         },
       },
     } },
+    DriveApp: { getFileById: (id) => { const f = state.files && state.files[id]; if (!f) throw new Error('No item with the given ID could be found'); return { getName: () => f.name, getBlob: () => ({ getDataAsString: () => f.text }) }; } },
     MailApp: { sendEmail: (m) => { if (state.mailFails) throw new Error('mail quota'); mail.push({ ...m }); } },
     UrlFetchApp: {
       fetch: (url, options) => {

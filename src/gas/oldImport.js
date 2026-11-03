@@ -20,9 +20,9 @@ export function loadOldPlan() {
   return { tabs, plan: planStories(tabs.flatMap((t) => t.records)), missing, extra };
 }
 
-/** Writes report lines to the Import Report tab, replacing what was there. */
-export function writeReportTab(ss, lines) {
-  const sheet = ss.getSheetByName('Import Report') || ss.insertSheet('Import Report');
+/** Writes report lines to a report tab (Import Report by default), replacing what was there. */
+export function writeReportTab(ss, lines, tabName = 'Import Report') {
+  const sheet = ss.getSheetByName(tabName) || ss.insertSheet(tabName);
   sheet.clear();
   const width = Math.max(...lines.map((l) => l.length));
   sheet.getRange(1, 1, lines.length, width).setValues(lines.map((l) => [...l, ...Array(width - l.length).fill('')]));

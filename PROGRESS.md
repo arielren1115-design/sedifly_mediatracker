@@ -358,3 +358,27 @@ Ben agreed with the proposals and sent the Google Sheets copy of the Old tracker
 3. Run `importOldDryRun`, open the `Import Report` tab and review it with Ben.
 4. When Ben is happy: set `IMPORT_CONFIRMED` to `YES`, run `importOld`, and repeat until the result says COMPLETE.
 5. Run it on DEV first. For production, repeat on the production sheet.
+
+
+## 2026-11-04 (planning): Ben's sign off, the audit file, and the cut-over
+
+### Ben's replies, applied
+- **Review approval confirms labels only.** Approving a row in the Review Queue no longer sets `Verified`; it stays `Needs verification` until a person checks the source. Imports and audit rows are never Verified either. `Verified` is now only ever set by hand.
+- `Import source` (tab and row): done. Grouping by matching headline within 7 days: done, and the dry run lists every grouped social story so Ben can confirm each is the same story.
+- **Cut-off: 4 November, 10:00 SGT, with a snapshot and a separate intake for new coverage.** After 10:00 nobody adds rows to the Old tracker; new coverage comes in through the tool (forward to the tracker address) or is logged by hand in the Book of Truth with `Found in = Manual`. The snapshot is a fresh Google Sheets copy of the Old tracker taken at 10:00; the copy used for the first dry run was taken on 3 November.
+
+### Historical audit (Ben's Claude audit, 10 candidates)
+- New, separate functions `importAuditDryRun` and `importAudit` (own `Audit Report` tab). Source: Drive file whose ID is the Script Property `AUDIT_FILE_ID`. Each row becomes a Coverage row with `Needs verification`, `Found in = Audit`, `Source route = Backfill: audit`, `Import source = Audit 2026-11-03 row N`, no alert time, and a note "Found by the historical audit". Links already in the tracker are skipped and listed in the report; the import needs `IMPORT_CONFIRMED = YES` and never sends an alert.
+- The file (10 rows: 6 media, 4 company listings with no date) is saved as `fixtures/audit/` for tests.
+- The audit file is currently in the Trash of its Shared Drive, so it needs restoring or copying before the script can rely on it.
+
+### Cut-over checklist (4 November)
+1. 10:00 SGT: stop adding rows to the Old tracker.
+2. Make a fresh Google Sheets copy of the Old tracker (the snapshot). Set `OLD_TRACKER_FILE_ID` to the copy's ID.
+3. Run `importOldDryRun`. Ben reviews the `Import Report` tab and approves.
+4. On an empty Book of Truth (no live rows yet): set `IMPORT_CONFIRMED = YES`, run `importOld` until COMPLETE.
+5. Run `importAuditDryRun`, check, then `importAudit`.
+6. Point the alert sources and team forwards at the tracker address.
+Production blocker: the production project and account do not exist yet (Joash's account decision). The same steps work on DEV today.
+
+Tests: 288 passing.

@@ -10,6 +10,7 @@ import { heartbeatCheck } from './gas/heartbeat.js';
 import { callClaude } from './gas/claude.js';
 import { simpleView, fullView } from './jobs/view.js';
 import { importOldDryRun, importOld } from './jobs/oldImport.js';
+import { importAuditDryRun, importAudit } from './jobs/auditImport.js';
 import { guarded } from './jobs/guard.js';
 
 const guardedIngest = guarded('runIngest', runIngest);
@@ -20,6 +21,8 @@ const guardedDigestNow = guarded('digestNow', digestNow);
 const guardedBackfill = guarded('runBackfill', runBackfill);
 const guardedImportDry = guarded('importOldDryRun', importOldDryRun);
 const guardedImport = guarded('importOld', importOld);
+const guardedAuditDry = guarded('importAuditDryRun', importAuditDryRun);
+const guardedAudit = guarded('importAudit', importAudit);
 
 export {
   setup, simpleView, fullView, compareBlindRun, mergeBlindRun, callClaude,
@@ -31,4 +34,6 @@ export {
   guardedBackfill as runBackfill,
   guardedImportDry as importOldDryRun,
   guardedImport as importOld,
+  guardedAuditDry as importAuditDryRun,
+  guardedAudit as importAudit,
 };
