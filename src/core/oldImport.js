@@ -17,6 +17,13 @@ export const GROUP_WINDOW_MS = 7 * DAY_MS;
  */
 export const KNOWN_SAME_POST = [];
 
+/**
+ * Links that must stay their own story and never join or attract a group, by owner decision. Each has the reason written into Notes.
+ */
+export const OWN_STORY_LINKS = [
+  { url: 'https://lnkd.in/p/gd9adJA7', reason: 'owner decision 2026-11-04: an Entrepreneur Media APAC post from 29 August, a different post from the other summit posts' },
+];
+
 /** One publisher posting the same topic on several platforms happens within a day or two; a week apart is a different post (Ben, 2026-11-04). */
 export const SAME_PUBLISHER_WINDOW_MS = 3 * DAY_MS;
 
@@ -184,8 +191,10 @@ export function planStories(records) {
       outcomes.duplicate++;
       continue;
     }
+    const own = norm && OWN_STORY_LINKS.find((o) => normalizeUrl(o.url) === norm);
+    if (own) rec.notes.push(`Kept as its own story (${own.reason})`);
     let target = null;
-    if (rec.ms !== null) {
+    if (rec.ms !== null && !own) {
       for (const k of groupKeys(rec)) {
         target = (byKey.get(k.key) || []).find((s) => s.main.ms !== null && Math.abs(rec.ms - s.main.ms) <= k.windowMs) || null;
         if (target) { rec.matchRule = k.rule; break; }
@@ -200,7 +209,7 @@ export function planStories(records) {
       stories.push(story);
       rec.outcome = 'story';
       outcomes.story++;
-      for (const k of groupKeys(rec)) { if (!byKey.has(k.key)) byKey.set(k.key, []); byKey.get(k.key).push(story); }
+      if (!own) for (const k of groupKeys(rec)) { if (!byKey.has(k.key)) byKey.set(k.key, []); byKey.get(k.key).push(story); }
     }
     if (norm) byUrl.set(norm, rec);
   }

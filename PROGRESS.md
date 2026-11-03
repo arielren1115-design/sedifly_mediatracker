@@ -403,3 +403,7 @@ Tests: 288 passing.
 - **Media Channel defaults to News**, with exceptions by link: podcast pages Podcast, blog pages Blog, video pages Other (social, Reddit, Hacker News still decided by the link). On the 564 Media stories that is 562 News, 1 Other (the Yahoo video) and 1 Blog (the Pine Capital post). The report lists every exception.
 - **Social group 62 short link.** Opening a LinkedIn short link from the tool would be fetching LinkedIn, which the project rules forbid, so a person checks it by clicking the link. If it is the same post as the full link, the pair is added to `KNOWN_SAME_POST` in `core/oldImport.js`, and the two rows merge as a duplicate link (both Old rows kept in Import source). Until then nothing is assumed and both stay as placements.
 - Tests: 297 passing.
+
+### 2026-11-04: Ben's third review
+- **The 29 August summit post is its own story.** The `lnkd.in/p/gd9adJA7` link no longer joins or attracts a group (`OWN_STORY_LINKS` in `core/oldImport.js`, with the reason written into that row's Notes). The other summit posts (the full LinkedIn post and the Facebook post) stay grouped without it, so group 62 becomes one story with one placement and the 29 August post is a separate story. Expected totals on the next dry run: 5,891 data rows become 634 stories, 5,218 placements and 39 duplicate links (Social Media: 53 stories, 15 placements). Everything else is unchanged.
+- Tests: 298 passing.

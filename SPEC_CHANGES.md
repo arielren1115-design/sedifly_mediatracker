@@ -115,6 +115,8 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 64 | 8.2 and 16 | Same headline within 7 days groups | For social posts by the same publisher and topic the window is 3 days (one post on several platforms); a same long topic still groups within 7 days | Two posts a week apart are not one post | Decided (Ben) |
 | 65 | 16 | Not stated | The dry run writes an Import Placement Map tab listing every placement and duplicate link with the story it joins, for confirmation before import | Ben, 2026-11-04 | Decided (Ben) |
 
+| 66 | 16 | Not stated | A short list of links can be pinned as their own story, with the reason in Notes. The 29 August summit post (`lnkd.in/p/gd9adJA7`) is the first | Ben, 2026-11-04 | Decided (Ben) |
+
 ## I. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.

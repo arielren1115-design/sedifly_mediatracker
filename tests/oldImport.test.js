@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { matchTabs, parseTab, planStories, toImportedCoverageRow, toPlacementRow, buildReport, buildPlacementMap, mediaChannel, KNOWN_SAME_POST, OLD_TABS, slugWords } from '../src/core/oldImport.js';
+import { matchTabs, parseTab, planStories, toImportedCoverageRow, toPlacementRow, buildReport, buildPlacementMap, mediaChannel, KNOWN_SAME_POST, OWN_STORY_LINKS, OLD_TABS, slugWords } from '../src/core/oldImport.js';
 import { COVERAGE_HEADERS, PLACEMENT_HEADERS } from '../src/core/schema.js';
 import { makeEnv, goodProps, load, fakeSheet } from './helpers/fakeGas.js';
 
@@ -188,6 +188,21 @@ test('a confirmed short link merges into the full link as a duplicate; unconfirm
     assert.deepEqual(plan.outcomes, { story: 1, placement: 0, duplicate: 1 });
     assert.equal(toImportedCoverageRow(plan.stories[0], { coverageId: 'C', now: new Date(0) })['Import source'], 'Social Media row 3; Social Media row 4');
   } finally { KNOWN_SAME_POST.pop(); }
+});
+
+test('the 29 August summit post (lnkd.in short link) is its own story and the other summit posts group without it', () => {
+  const T = 'Entrepreneur APAC Capital & Scale Summit 2026';
+  const rows = [['Date', 'Category', 'Topic', 'Link', 'Publisher', 'Social Media'], ['2026', '', '', '', '', ''],
+    ['4 September', 'Event', T, 'https://lnkd.in/p/gd9adJA7', 'Entrepreneur Media APAC, SG', 'LinkedIn'],
+    ['4 September', 'Event', T, 'https://www.linkedin.com/posts/entrepreneur-asia-pacific_summit-activity-7501596551694258176-57j3', 'Entrepreneur Media APAC, SG', 'LinkedIn'],
+    ['5 September', 'Event', T, 'https://www.facebook.com/EntAsiaPacific/posts/1675218494611212/', 'Entrepreneur Media APAC, SG', 'Facebook']];
+  const plan = planStories(parseTab(SOCIAL, rows).records);
+  assert.equal(plan.stories.length, 2);
+  assert.deepEqual(plan.stories.map((x) => [x.main.key, x.placements.length]), [['Social Media row 3', 0], ['Social Media row 4', 1]]);
+  const own = toImportedCoverageRow(plan.stories[0], { coverageId: 'COV-1', now: new Date(0) });
+  assert.match(own.Notes, /Kept as its own story \(owner decision 2026-11-04/);
+  assert.equal(own['Syndicated copies'], '');
+  assert.equal(OWN_STORY_LINKS.length, 1);
 });
 
 test('the report counts the rows kept for review once each, with the reasons that add up', () => {
