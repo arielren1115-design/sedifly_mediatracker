@@ -338,3 +338,23 @@ and asked how deduplication and verification will work. The answer drafted for B
 
 ### Dedicated account for production (Ben's question) and the existing Sedifly Global Gmail (Joash's question)
 Answer: yes to a dedicated account (for example `media@sedifly.com`) with `pr@sedifly.com` as an alias. Using the existing Sedifly Global Gmail depends on one fact: is it a free `@gmail.com` address or a Workspace `@sedifly.com` user? Issues and options are in the reply to Joash (copied in SPEC_CHANGES item 55). No code change is needed for either; the actions are for the account owner and Ariel (deployment).
+
+
+## 2026-11-03 later: M7 import built (dry run first)
+
+Ben agreed with the proposals and sent the Google Sheets copy of the Old tracker plus the details of the other two tabs. The Old tracker has three tabs: **Media** (Date, Category, Media Name, Topic, Link; about 5,800 rows), **Social Media** (Date, Category, Topic, Link, Publisher, Social Media, Screenshot; about 70 rows) and **Non Media Listings** (Date, Link, Media Name, Catagory; 19 rows). Each tab has year heading rows (2025, 2026) above the dates, and dates carry no reliable year, so the heading year is used.
+
+### Built
+- `Import source` column on Coverage and Review Queue (Old tab and row). `fixtures/config/old_tracker_mapping.csv` is now the full agreed mapping for all three tabs.
+- `importOldDryRun()`: reads the Old copy (read only) and writes only an `Import Report` tab: rows per tab, year headings, blank rows, stories, placements, duplicate links, a check that every row adds up, tabs found or not imported, rows with problems (no date, no link, category outside the four, unreadable date), the largest stories and every grouped social story. Nothing goes into Coverage.
+- `importOld()`: needs the Script Property `IMPORT_CONFIRMED` set to `YES` (a deliberate step after the report is reviewed). Writes one Coverage row per story and one Syndicated Placements line per grouped row. Resumable (run again until it says COMPLETE), never writes a row twice, never sends an alert or an email. Every imported row is `Needs verification`, `Found in = Old`, `Source route = Backfill: Old tracker`, `Logged by = import`.
+- Grouping: same headline (5 or more words, taken from the URL text) within 7 days for media rows; same long social topic, or same publisher and topic, within 7 days for social rows. Listings are never grouped. The same link twice is one row with both Old rows in `Import source`.
+- Trial on the 4,813 Media rows the connector could read: 415 stories, 4,359 placements, 39 duplicate links, and every row accounted for. The biggest stories are the George Baxter appointment (990 placements), the Minister Alvin Tan summit story (865), Davos (645) and the YP40 event (499).
+- Tests: 282 passing, including the built bundle with fake Old tabs (dry run changes nothing, refusal without confirmation, no mail, resume after a partial write, missing tab).
+
+### To run it (Ariel)
+1. After the push, run `setup()` (adds the `Import source` column).
+2. In Project Settings, Script Properties, set `OLD_TRACKER_FILE_ID` to `1OwPXmQv9vGk22mOtey3TJtd1n-MU2iUa_IybwkAE3KQ` (do not re-run `seedDevProperties` for this).
+3. Run `importOldDryRun`, open the `Import Report` tab and review it with Ben.
+4. When Ben is happy: set `IMPORT_CONFIRMED` to `YES`, run `importOld`, and repeat until the result says COMPLETE.
+5. Run it on DEV first. For production, repeat on the production sheet.

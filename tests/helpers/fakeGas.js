@@ -11,6 +11,8 @@ export function fakeSheet(name) {
   const s = {
     name, frozen: 0, rows, formats: {},
     getName: () => name,
+    clear: () => { rows.length = 0; },
+    getDataRange: () => ({ getValues: () => rows.map((r) => [...r]) }),
     getSheetId: () => 100 + name.length,
     getLastColumn: () => rows.reduce((m, r) => Math.max(m, r.length), 0),
     getLastRow: () => rows.length,

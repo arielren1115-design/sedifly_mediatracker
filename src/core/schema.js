@@ -6,7 +6,7 @@ export const COVERAGE_HEADERS = [
   'Title', 'URL', 'Normalised URL', 'Excerpt', 'Category', 'Priority', 'Sentiment',
   'Rules matched', 'Instant alert sent', 'Archive status', 'Archive link', 'Found in',
   'Verification', 'Source route', 'Syndicated copies', 'Gmail message ID', 'Classifier confidence', 'Logged by',
-  'Submitted by', 'Notes', 'Last updated',
+  'Submitted by', 'Import source', 'Notes', 'Last updated',
 ];
 
 /** Review Queue = every Coverage column plus the review columns (spec 6.2). */
@@ -106,6 +106,7 @@ export const COLUMN_HELP = {
   'Classifier confidence': 'How sure the AI was about its labels, from 0 to 1. Below 0.70 goes to the Review Queue. This is separate from Verification and does not mean the source is verified.',
   'Logged by': 'script for the tool, or a person.',
   'Submitted by': 'Email address of the team member who forwarded the link. Blank for automatic alerts. Several if more than one person sent it.',
+  'Import source': 'For imported history only: the Old tracker tab and row this came from, so it can always be traced back. Several if the same link was listed more than once.',
   Notes: 'Free text for people. The tool never changes this.',
   'Last updated': 'Last time the tool changed the row.',
   'Review reason': 'Why the item is in the Review Queue.',
@@ -126,6 +127,6 @@ export const COLUMN_HELP = {
 
 /** Columns the simple view hides, because marketing does not need them day to day. Nothing is deleted or moved. */
 export const SIMPLE_VIEW_HIDDEN = {
-  Coverage: ['Outlet tier', 'Normalised URL', 'Archive status', 'Archive link', 'Found in', 'Gmail message ID', 'Classifier confidence', 'Logged by', 'Last updated'],
-  'Review Queue': ['Outlet tier', 'Normalised URL', 'Archive status', 'Archive link', 'Found in', 'Gmail message ID', 'Logged by', 'Last updated', 'Synced at'],
+  Coverage: ['Outlet tier', 'Normalised URL', 'Archive status', 'Archive link', 'Found in', 'Gmail message ID', 'Classifier confidence', 'Logged by', 'Import source', 'Last updated'],
+  'Review Queue': ['Outlet tier', 'Normalised URL', 'Archive status', 'Archive link', 'Found in', 'Gmail message ID', 'Logged by', 'Import source', 'Last updated', 'Synced at'],
 };
