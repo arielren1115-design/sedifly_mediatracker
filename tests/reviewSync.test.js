@@ -71,3 +71,16 @@ test('runReviewSync through the built bundle: approve, reject, run again', async
   assert.equal(env.sheets.x['Run Log'].rows.length, 2, 'a run that changed nothing writes no log row');
   assert.equal(env.store.NEXT_COVERAGE_ID, '6');
 });
+
+test('placements counted against a review row get the Story ID once that row is approved', async () => {
+  const { env, sb, add } = await ready();
+  const pl = env.sheets.x['Syndicated Placements'];
+  const ph = pl.rows[0];
+  const line = (url, storyUrl, id) => pl.rows.push(ph.map((h) => ({ 'Story URL': storyUrl, 'Story ID': id, 'Placement URL': url }[h] ?? '')));
+  line('https://copy1.example.com/a', 'https://example.com/a', '');
+  line('https://copy2.example.com/b', 'https://example.com/other', '');
+  add({ Title: 'A', URL: 'https://example.com/a', Entity: 'Sedifly', Category: 'Brand', Priority: 'High', Decision: 'Approve', 'Gmail message ID': 'm1' });
+  vm.runInContext('runReviewSync()', sb);
+  assert.equal(pl.rows[1][ph.indexOf('Story ID')], 'COV-000005');
+  assert.equal(pl.rows[2][ph.indexOf('Story ID')], '', 'other stories are untouched');
+});

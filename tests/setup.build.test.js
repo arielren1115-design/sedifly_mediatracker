@@ -26,7 +26,7 @@ test('setup creates everything, and a second run changes nothing', async () => {
   assert.equal(env.store.NEXT_COVERAGE_ID, '1');
   for (const id of ['x']) {
     const tabs = Object.keys(env.sheets[id]);
-    assert.deepEqual(tabs.sort(), ['Coverage', 'Review Queue', 'Run Log']); // blank Sheet1 removed
+    assert.deepEqual(tabs.sort(), ['Coverage', 'Review Queue', 'Run Log', 'Syndicated Placements']); // blank Sheet1 removed
     assert.equal(env.sheets[id].Coverage.rows[0][0], 'Coverage ID');
   }
   const cov = env.sheets.x.Coverage;

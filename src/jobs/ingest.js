@@ -49,6 +49,7 @@ export function runIngest() {
         allocateIds: allocateCoverageIds,
         appendCoverageRow: (row) => appendObjects(coverage, [row]),
         appendReviewRow: (row) => appendObjects(reviewQueue, [row]),
+        appendPlacement: (row) => appendObjects(ss.getSheetByName('Syndicated Placements'), [row]),
         updateExisting: (entry, values) => updateCells(ss.getSheetByName(entry.sheet), entry.rowNumber, values),
         markProcessed: (id, label) => markProcessed(id, labelIds, label),
         markReview: (id, label) => markReview(id, labelIds, label),

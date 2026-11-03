@@ -325,3 +325,16 @@ and asked how deduplication and verification will work. The answer drafted for B
 - `fixtures/golden/golden_batch3_synthetic.csv` (6 rows): invented test cases, clearly marked SYNTHETIC with example.com links. They cover a damaging allegation, a factual error, a mildly critical mention, generic news, an unclear forward and an unverified rumour. Ben sets the labels.
 - Finding: because an alert's own name counts as an ambiguous hint, a generic article returned by the Sedifly alert goes to review ("Ambiguous entity match"), not skip. The tool never skips an alert result that carries an alert name unless the classifier says it is unrelated to a strong match. Ben to say whether review or skip is the label he wants for such items.
 - Reddit items are left out of the golden set for now (the F5Bot parser has a real fixture).
+
+
+## 2026-11-03: Ben's review of the design, and the shared account question
+
+### Built from Ben's comments (all tests pass, 268)
+- **Placements under one story ID.** New tab `Syndicated Placements`. When the same headline arrives on another site, no new Coverage row is added, the main row's `Syndicated copies` goes up, and one line is added to the tab with `Story ID` (the main row's Coverage ID), `Story URL`, `Placement URL`, outlet, title, detected time, route, origin (`Live`) and sender. A copy counted against a Review Queue row gets its `Story ID` filled in when that row is approved. `setup()` creates the tab. The import will use the same tab with the Old tab and row as the origin.
+- **Confidence is separate from verification.** `Classifier confidence` is its own number and only decides routing (Coverage or Review Queue). `Verification` is no longer set from it: every tool row stays `Needs verification` until a person checks the source. Approving a row in the Review Queue still sets `Verified`; open question for Ben whether that should stay, since approving confirms the labels, not necessarily the source.
+- **Old entries are never auto Verified.** Mapping draft v3 says every imported row is `Needs verification`.
+- Reddit deferred.
+- Existing DEV rows keep their values. Run `setup()` after the push to create the new tab.
+
+### Dedicated account for production (Ben's question) and the existing Sedifly Global Gmail (Joash's question)
+Answer: yes to a dedicated account (for example `media@sedifly.com`) with `pr@sedifly.com` as an alias. Using the existing Sedifly Global Gmail depends on one fact: is it a free `@gmail.com` address or a Workspace `@sedifly.com` user? Issues and options are in the reply to Joash (copied in SPEC_CHANGES item 55). No code change is needed for either; the actions are for the account owner and Ariel (deployment).

@@ -16,11 +16,11 @@ export function itemKey(item) {
 
 /**
  * @param {object} item RawItem
- * @param {{coverageId?: string|null, now: Date, normalisedUrl?: string|null, classification?: object|null, threshold?: number}} ctx
- *   coverageId is omitted for Review Queue rows. With a classification, its fields fill the row; Verification is Verified only at or above the threshold.
+ * @param {{coverageId?: string|null, now: Date, normalisedUrl?: string|null, classification?: object|null}} ctx
+ *   coverageId is omitted for Review Queue rows. With a classification, its fields fill the row. Verification is never set from the classifier's confidence (owner decision 2026-11-03): it stays Needs verification until a person checks the source.
  * @returns {Object<string, any>} header name to value
  */
-export function toCoverageRow(item, { coverageId, now, normalisedUrl, classification, threshold }) {
+export function toCoverageRow(item, { coverageId, now, normalisedUrl, classification }) {
   const channel = item.channelHint || channelFromUrl(item.url) || '';
   const row = {
     ...(coverageId ? { 'Coverage ID': coverageId } : {}),
@@ -42,11 +42,11 @@ export function toCoverageRow(item, { coverageId, now, normalisedUrl, classifica
     'Submitted by': item.submittedBy || '',
     'Last updated': now,
   };
-  return classification ? applyClassification(row, item, classification, threshold) : row;
+  return classification ? applyClassification(row, item, classification) : row;
 }
 
 /** Link derived channel and source type win over the model for social links, which the script can tell for certain. */
-function applyClassification(row, item, c, threshold) {
+function applyClassification(row, item, c) {
   const fromLink = row.Channel;
   const social = SOCIAL_CHANNELS.includes(fromLink);
   return {
@@ -63,6 +63,5 @@ function applyClassification(row, item, c, threshold) {
     Sentiment: c.sentiment,
     'Rules matched': c.matched_rule_ids.join(', '),
     'Classifier confidence': c.confidence,
-    Verification: typeof threshold === 'number' && c.confidence >= threshold ? 'Verified' : 'Needs verification',
   };
 }

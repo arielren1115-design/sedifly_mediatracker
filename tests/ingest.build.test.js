@@ -168,6 +168,12 @@ test('a syndicated copy raises the Syndicated copies cell on the existing row an
   assert.equal(coverageRows(env).length - 1, 2, 'still two rows');
   assert.equal(forbes()[col('Syndicated copies')], 2);
   assert.equal(forbes()[col('Source route')], 'Talkwalker');
+  // every copy is kept as its own placement line under the story
+  const pl = env.sheets.x['Syndicated Placements'].rows;
+  const pc = (r, h) => r[pl[0].indexOf(h)];
+  assert.equal(pl.length - 1, 2);
+  assert.deepEqual(pl.slice(1).map((r) => pc(r, 'Placement URL')).sort(), ['https://one.example.com/copy', 'https://two.example.com/copy']);
+  assert.ok(pl.slice(1).every((r) => pc(r, 'Origin') === 'Live' && pc(r, 'Story URL') === forbes()[col('Normalised URL')]));
   assert.ok(forbes()[col('Last updated')] instanceof Date || typeof forbes()[col('Last updated')] === 'object');
 });
 
@@ -216,7 +222,8 @@ test('with an API key, rows are classified and the request names the model and a
   const headers = coverageRows(env)[0];
   const first = coverageRows(env)[1];
   assert.equal(first[headers.indexOf('Category')], 'Brand');
-  assert.equal(first[headers.indexOf('Verification')], 'Verified');
+  assert.equal(first[headers.indexOf('Verification')], 'Needs verification', 'confidence does not verify the source');
+  assert.equal(first[headers.indexOf('Classifier confidence')], 0.92);
   assert.equal(first[headers.indexOf('Rules matched')], 'MR-006');
   const call = env.state.fetches[0];
   assert.match(call.url, /api\.anthropic\.com/);

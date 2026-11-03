@@ -8,6 +8,19 @@ import { decideAlert, classificationFromRow } from '../core/routing.js';
 import { alertForRow } from '../gas/alerts.js';
 import { loadActiveRules } from '../gas/rules.js';
 
+/** Placements counted against a review row have no Story ID yet. Once the story gets its Coverage ID, fill it in. */
+function fillPlacementStoryId(ss, storyUrl, coverageId) {
+  const sheet = ss.getSheetByName('Syndicated Placements');
+  if (!storyUrl || !sheet || sheet.getLastRow() < 2) return;
+  const values = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
+  const headers = values[0].map((h) => String(h).trim());
+  const urlCol = headers.indexOf('Story URL');
+  const idCol = headers.indexOf('Story ID');
+  values.slice(1).forEach((r, i) => {
+    if (r[urlCol] === storyUrl && r[idCol] === '') updateCells(sheet, i + 2, { 'Story ID': coverageId }, ['Story ID']);
+  });
+}
+
 /**
  * Copies Approved rows of the Review Queue into Coverage and stamps Synced at. Rejected rows are only stamped (kept for accuracy metrics).
  * Safe to run again: an approved row whose link is already in Coverage is stamped, not copied twice.
@@ -43,6 +56,7 @@ export function runReviewSync() {
       plan.approve.forEach((a, i) => {
         const newRow = approvedCoverageRow(a.values, { coverageId: ids[i], now, norm: a.norm });
         const coverageRow = appendObjects(coverage, [newRow]);
+        fillPlacementStoryId(ss, a.norm, ids[i]);
         stamp(a.rowNumber);
         const detail = { row: a.rowNumber, outcome: 'approved', coverageId: ids[i] };
         // Routing runs on approval (spec 6.2). A row already alerted as UNCONFIRMED carries its send time across, so it is not alerted again.

@@ -21,10 +21,16 @@ export const RUN_LOG_HEADERS = [
   'Status (OK / PARTIAL / FAILED)', 'Detail',
 ];
 
+/** One line per extra placement of a story (same headline on another site), so a grouped story keeps every placement (owner decision 2026-11-03). */
+export const PLACEMENT_HEADERS = [
+  'Story ID', 'Story URL', 'Placement URL', 'Placement normalised URL', 'Outlet', 'Title', 'Detected at', 'Source route', 'Origin', 'Submitted by', 'Gmail message ID',
+];
+
 export const TABS = {
   Coverage: COVERAGE_HEADERS,
   'Review Queue': REVIEW_QUEUE_HEADERS,
   'Run Log': RUN_LOG_HEADERS,
+  'Syndicated Placements': PLACEMENT_HEADERS,
 };
 
 /** Number formats for date columns, so the time is visible. Published at is a date only. */
@@ -93,11 +99,11 @@ export const COLUMN_HELP = {
   'Archive status': 'Pending, Filed, Filed (PNG), Save by hand, Screenshot needed or Not required. Archiving is paused for now, so rows stay Pending.',
   'Archive link': 'Drive link to the saved copy. Blank while archiving is paused.',
   'Found in': 'Which system found it: Old, Tool, Archive or Manual.',
-  Verification: 'Verified (confident or approved by a person) or Needs verification.',
+  Verification: 'Verified once a person has checked the source (for example approved in the Review Queue). Needs verification until then. Never set from the AI confidence.',
   'Source route': 'How it reached us: Google Alerts, Talkwalker, F5Bot or Team forward. Several if more than one.',
   'Syndicated copies': 'How many other websites ran the same headline. Counted here instead of adding rows.',
   'Gmail message ID': 'Technical ID of the email. Stops the same email being processed twice. Do not edit.',
-  'Classifier confidence': 'How sure the AI was, from 0 to 1. Below 0.70 goes to the Review Queue.',
+  'Classifier confidence': 'How sure the AI was about its labels, from 0 to 1. Below 0.70 goes to the Review Queue. This is separate from Verification and does not mean the source is verified.',
   'Logged by': 'script for the tool, or a person.',
   'Submitted by': 'Email address of the team member who forwarded the link. Blank for automatic alerts. Several if more than one person sent it.',
   Notes: 'Free text for people. The tool never changes this.',
@@ -106,6 +112,11 @@ export const COLUMN_HELP = {
   Decision: 'Choose Approve to copy the row into Coverage (fix any wrong cells first), or Reject to keep it here only.',
   'Reviewed by': 'Email of the person who made the decision.',
   'Synced at': 'When the decision was processed. Filled by the tool.',
+  'Story ID': 'Coverage ID of the story this placement belongs to. Blank until that story is approved out of the Review Queue.',
+  'Story URL': 'Cleaned link of the main row of the story. Used to match the placement to its story.',
+  'Placement URL': 'The link of this extra placement of the same story on another site.',
+  'Placement normalised URL': 'Cleaned copy of the placement link. Do not edit.',
+  Origin: 'Live for items found by the tool, or the Old tracker tab and row for imported history.',
   'Run ID': 'Unique ID of one run.', Function: 'Which job ran.', 'Started at': 'When the run began.', 'Duration ms': 'How long the run took in milliseconds.',
   'Messages seen': 'Emails looked at.', 'Items parsed': 'Links or mentions found in them.', 'New rows': 'Rows added to Coverage.',
   Duplicates: 'Items already in the sheet, or copies counted on an existing row.', 'To review': 'Items or emails sent to review.',

@@ -353,7 +353,7 @@ test('with a classifier, rows carry category, priority, rules and verification',
   assert.equal(row.Category, 'Brand');
   assert.equal(row.Priority, 'Standard');
   assert.equal(row['Rules matched'], 'MR-006');
-  assert.equal(row.Verification, 'Verified');
+  assert.equal(row.Verification, 'Needs verification', 'a confident classification does not verify the source');
   assert.equal(row['Classifier confidence'], 0.9);
 });
 
@@ -485,4 +485,19 @@ test('the same link sent by a second person records both senders, once each', as
   assert.equal(w.coverage[0]['Submitted by'], 'ben@sedifly.com');
   assert.equal(w.updates.length, 1);
   assert.equal(w.updates[0].values['Submitted by'], 'ben@sedifly.com, joash@sedifly.com');
+});
+
+test('each syndicated copy also writes a placement line under the story, and a re-run adds none', async () => {
+  const w = await world();
+  const placements = [];
+  processBatch(w.deps({ ...only(w, 'tw'), appendPlacement: (r) => placements.push(r) }));
+  copyOf(w, 'tw2', FORBES, 'https://syndicated.example.com/copy');
+  const s = processBatch(w.deps({ ...only(w, 'tw2'), appendPlacement: (r) => placements.push(r) }));
+  assert.equal(s.newRows, 0);
+  assert.equal(placements.length, 1);
+  assert.equal(placements[0]['Story ID'], 'COV-000001');
+  assert.equal(placements[0]['Placement URL'], 'https://syndicated.example.com/copy');
+  assert.equal(placements[0].Origin, 'Live');
+  processBatch(w.deps({ ...only(w, 'tw2'), appendPlacement: (r) => placements.push(r) }));
+  assert.equal(placements.length, 1, 'nothing is written twice');
 });

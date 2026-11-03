@@ -18,6 +18,7 @@ import { extractEmail } from './parsers/teamForward.js';
  * @param {(n:number) => string[]} deps.allocateIds
  * @param {(row: object) => number} deps.appendCoverageRow returns the new row number
  * @param {(row: object) => number} deps.appendReviewRow returns the new row number
+ * @param {(row: object) => void} [deps.appendPlacement] writes one line to the Syndicated Placements tab
  * @param {(entry: object, values: object) => void} deps.updateExisting writes Source route, Found in and Last updated
  * @param {(id:string, sourceLabel:string) => void} deps.markProcessed
  * @param {(id:string, sourceLabel:string, reason:string) => void} deps.markReview
@@ -131,7 +132,7 @@ function handleItem(deps, item, counts) {
     }
   };
   const addReview = (reason, entityName, classification) => {
-    const row = { ...toCoverageRow(item, { now, normalisedUrl: norm, classification, threshold: deps.classifier && deps.classifier.threshold }), 'Review reason': reason, Verification: 'Needs verification' };
+    const row = { ...toCoverageRow(item, { now, normalisedUrl: norm, classification }), 'Review reason': reason, Verification: 'Needs verification' };
     if (entityName) row.Entity = entityName; // the gate's candidate wins over the model's guess for an ambiguous match
     const rowNumber = deps.appendReviewRow(row);
     index.add({ ...entry, sheet: 'Review Queue', rowNumber, coverageId: '' });
@@ -145,6 +146,13 @@ function handleItem(deps, item, counts) {
   if (similar) {
     const copies = similar.syndicatedCopies + 1;
     deps.updateExisting(similar, { 'Syndicated copies': copies, 'Last updated': now });
+    // Every placement is kept as its own line under the story, so grouping loses nothing.
+    if (deps.appendPlacement) {
+      deps.appendPlacement({
+        'Story ID': similar.coverageId || '', 'Story URL': similar.norm, 'Placement URL': item.url, 'Placement normalised URL': norm, Outlet: item.outlet || '', Title: item.title || '',
+        'Detected at': now, 'Source route': item.route, Origin: 'Live', 'Submitted by': item.submittedBy || '', 'Gmail message ID': item.gmailMessageId,
+      });
+    }
     index.setCopies(similar, copies);
     index.addKey(key);
     counts.duplicates++;
@@ -184,7 +192,7 @@ function handleItem(deps, item, counts) {
   }
 
   const coverageId = deps.allocateIds(1)[0];
-  const row = toCoverageRow(item, { coverageId, now, normalisedUrl: norm, classification, threshold: deps.classifier && deps.classifier.threshold });
+  const row = toCoverageRow(item, { coverageId, now, normalisedUrl: norm, classification });
   const rowNumber = deps.appendCoverageRow(row);
   index.add({ ...entry, sheet: 'Coverage', rowNumber, coverageId });
   counts.newRows++;
