@@ -43,6 +43,12 @@ export const DATETIME_FORMATS = {
   'Published at': 'yyyy-mm-dd',
 };
 
+/** Plain number formats, so a count never shows as a date. */
+export const NUMBER_FORMATS = {
+  'Syndicated copies': '0',
+  'Classifier confidence': '0.00',
+};
+
 export const REVIEW_DECISIONS = ['Approve', 'Reject'];
 
 /** Source type values (owners, 2026-10-25). Kept here for the dropdown; definitions live in taxonomy.js. */

@@ -1,4 +1,4 @@
-import { missingHeaders, TABS, REVIEW_DECISIONS, DATETIME_FORMATS, SOURCE_TYPE_VALUES, COLUMN_HELP, SIMPLE_VIEW_HIDDEN } from '../core/schema.js';
+import { missingHeaders, TABS, REVIEW_DECISIONS, DATETIME_FORMATS, NUMBER_FORMATS, SOURCE_TYPE_VALUES, COLUMN_HELP, SIMPLE_VIEW_HIDDEN } from '../core/schema.js';
 
 /**
  * Create a tab if needed and append any missing headers. Never deletes or reorders columns.
@@ -39,6 +39,9 @@ export function ensureAllTabs(ss) {
     const rowsBelowHeader = sheet.getMaxRows() - 1;
     if (rowsBelowHeader < 1) continue;
     for (const [header, format] of Object.entries(DATETIME_FORMATS)) {
+      if (headers.includes(header)) sheet.getRange(2, columnByHeader(sheet, header), rowsBelowHeader, 1).setNumberFormat(format);
+    }
+    for (const [header, format] of Object.entries(NUMBER_FORMATS)) {
       if (headers.includes(header)) sheet.getRange(2, columnByHeader(sheet, header), rowsBelowHeader, 1).setNumberFormat(format);
     }
   }

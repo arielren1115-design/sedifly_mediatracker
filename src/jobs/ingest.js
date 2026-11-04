@@ -7,6 +7,7 @@ import { classifierConfigured, buildClassifier } from '../gas/classifier.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { pingHeartbeat } from '../gas/ping.js';
 import { createAlertSender, retryPendingAlerts } from '../gas/alerts.js';
+import { completeManualRows } from '../gas/manualRows.js';
 import { processBatch } from '../core/ingestRun.js';
 import { createIndex } from '../core/dedupe.js';
 
@@ -30,6 +31,8 @@ export function runIngest() {
     const ss = SpreadsheetApp.openById(targetSpreadsheetId());
     assertTabsReady(ss);
     retryPendingAlerts(ss);
+    const manual = completeManualRows(ss);
+    if (manual) log('runIngest: gave IDs to rows typed by hand', { rows: manual });
     const labelIds = labelIdsByName();
     const candidates = listCandidates(labelIds, Number(getProp('BATCH_MAX_MESSAGES')));
     let summary = { messagesSeen: 0, details: [], status: 'OK', errors: 0 };

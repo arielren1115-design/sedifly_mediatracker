@@ -263,3 +263,28 @@ test('idle runs are logged once an hour, busy runs every time', async () => {
   assert.equal(runLogRows(env).length - 1, 3, 'a run with mail is always logged');
   assert.ok(env.store.LAST_SUCCESS_AT, 'idle runs still count as successful for the heartbeat');
 });
+
+// ---- rows typed by hand ----
+import { COVERAGE_HEADERS as CH } from '../src/core/schema.js';
+test('a row typed into Coverage by hand gets an ID and defaults on the next run, and nothing a person wrote is changed', async () => {
+  const { env, sb } = await ready();
+  env.store.NEXT_COVERAGE_ID = '700';
+  const cov = env.sheets.x.Coverage;
+  cov.rows.push(CH.map((h) => ({ URL: 'https://www.example.com/story?utm_source=x', Title: 'Typed by Ben', Notes: 'my note', 'Found in': 'Manual', 'Logged by': 'ben@sedifly.com' }[h] ?? '')));
+  cov.rows.push(CH.map((h) => ({ 'Coverage ID': 'COV-000050', Title: 'Has an ID' }[h] ?? '')));
+  cov.rows.push(CH.map(() => ''));
+  run(sb, 'runIngest()');
+  const c = (row, h) => cov.rows[row][cov.rows[0].indexOf(h)];
+  assert.equal(c(1, 'Coverage ID'), 'COV-000700');
+  assert.equal(c(1, 'Verification'), 'Needs verification');
+  assert.equal(c(1, 'Normalised URL'), 'https://example.com/story');
+  assert.equal(c(1, 'Source route'), 'Manual');
+  assert.equal(c(1, 'Notes'), 'my note');
+  assert.equal(c(1, 'Logged by'), 'ben@sedifly.com');
+  assert.ok(c(1, 'Detected at'));
+  assert.equal(c(2, 'Coverage ID'), 'COV-000050', 'existing IDs are never changed');
+  assert.equal(c(3, 'Coverage ID'), '', 'an empty row is left alone');
+  assert.equal(env.store.NEXT_COVERAGE_ID, '701');
+  run(sb, 'runIngest()');
+  assert.equal(env.store.NEXT_COVERAGE_ID, '701', 'a second run gives nothing out');
+});

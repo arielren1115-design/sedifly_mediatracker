@@ -117,6 +117,9 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 
 | 66 | 16 | Not stated | A short list of links can be pinned as their own story, with the reason in Notes. The 29 August summit post (`lnkd.in/p/gd9adJA7`) is the first | Ben, 2026-11-04 | Decided (Ben) |
 
+| 67 | 6.1 | Rows added by hand get an ID on the next run | Built: every ingest run fills the Coverage ID and the defaults on hand typed rows, blank cells only | Found missing during the import check | Technical |
+| 68 | 6.1 | Not stated | `Syndicated copies` and `Classifier confidence` are formatted as plain numbers | Counts showed as dates | Technical |
+
 ## I. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.

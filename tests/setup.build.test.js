@@ -67,3 +67,12 @@ test('setup puts a hover note on every header; simpleView hides the technical co
   assert.equal(cov.hidden.size, 0);
   assert.equal(cov.rows.length, 1, 'no data or headers were touched');
 });
+
+test('counts are formatted as plain numbers, so Syndicated copies never shows as a date', async () => {
+  const env = makeEnv(goodProps());
+  const sb = await load(env);
+  vm.runInContext('setup()', sb);
+  const cov = env.sheets.x.Coverage;
+  assert.equal(cov.formats[cov.rows[0].indexOf('Syndicated copies') + 1], '0');
+  assert.equal(cov.formats[cov.rows[0].indexOf('Classifier confidence') + 1], '0.00');
+});
