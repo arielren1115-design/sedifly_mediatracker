@@ -288,3 +288,18 @@ test('a row typed into Coverage by hand gets an ID and defaults on the next run,
   run(sb, 'runIngest()');
   assert.equal(env.store.NEXT_COVERAGE_ID, '701', 'a second run gives nothing out');
 });
+
+test('a live item whose link is an old placement merges into that story and is not logged again', async () => {
+  const { env, sb, add } = await ready();
+  const cov = env.sheets.x.Coverage;
+  cov.rows.push(CH.map((h) => ({ 'Coverage ID': 'COV-000100', 'Normalised URL': 'https://example.com/the-story', URL: 'https://example.com/the-story', 'Found in': 'Old', 'Source route': 'Backfill: Old tracker' }[h] ?? '')));
+  const pl = env.sheets.x['Syndicated Placements'];
+  pl.rows.push(pl.rows[0].map((h) => ({ 'Story ID': 'COV-000100', 'Story URL': 'https://example.com/the-story', 'Placement URL': 'https://www.forbes.com/councils/forbesbusinesscouncil/2026/10/13/why-venture-capital-money-isnt-right-for-every-founder/', 'Placement normalised URL': 'https://forbes.com/councils/forbesbusinesscouncil/2026/10/13/why-venture-capital-money-isnt-right-for-every-founder', Origin: 'Old tracker: Media row 9' }[h] ?? '')));
+  await add('a2', 'talkwalker_native', ['Monitoring/Automated']);
+  run(sb, 'runIngest()');
+  const urls = cov.rows.slice(1).map((r) => r[cov.rows[0].indexOf('URL')]);
+  assert.ok(!urls.some((u) => String(u).includes('forbes.com')), 'the old placement was not logged again');
+  const story = cov.rows[1];
+  assert.equal(story[cov.rows[0].indexOf('Found in')], 'Old, Tool');
+  assert.match(story[cov.rows[0].indexOf('Source route')], /Backfill: Old tracker, Talkwalker/);
+});

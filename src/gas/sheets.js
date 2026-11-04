@@ -119,7 +119,8 @@ export function updateCells(sheet, rowNumber, values, allowed = UPDATABLE) {
 
 /**
  * Rows already in Coverage and Review Queue, as dedupe index rows. Coverage comes first, so it wins over Review Queue.
- * Columns are found by header name.
+ * Placements of a grouped story are also known links: each one is indexed against its story's row, so a live item whose link is an
+ * old placement merges into that story and is not logged again. Columns are found by header name.
  */
 export function readIndexRows(ss) {
   const out = [];
@@ -143,6 +144,20 @@ export function readIndexRows(ss) {
       submittedBy: String(col(row, 'Submitted by')),
       gmailMessageId: col(row, 'Gmail message ID'),
     }));
+  }
+  const placements = ss.getSheetByName('Syndicated Placements');
+  if (placements && placements.getLastRow() > 1) {
+    const byId = new Map(out.filter((r) => r.sheet === 'Coverage' && r.coverageId).map((r) => [r.coverageId, r]));
+    const v = placements.getRange(1, 1, placements.getLastRow(), placements.getLastColumn()).getValues();
+    const h = v[0].map((x) => String(x).trim());
+    const at = (n) => h.indexOf(n);
+    for (const r of v.slice(1)) {
+      const story = byId.get(r[at('Story ID')]);
+      const norm = r[at('Placement normalised URL')];
+      if (!story || !norm) continue;
+      // Same row as the story, but no title and no message id, so it only ever matches by link.
+      out.push({ ...story, url: r[at('Placement URL')], normalisedUrl: norm, title: '', gmailMessageId: '' });
+    }
   }
   return out;
 }
