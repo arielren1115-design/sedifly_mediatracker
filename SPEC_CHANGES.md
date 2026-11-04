@@ -120,6 +120,8 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 67 | 6.1 | Rows added by hand get an ID on the next run | Built: every ingest run fills the Coverage ID and the defaults on hand typed rows, blank cells only | Found missing during the import check | Technical |
 | 68 | 6.1 | Not stated | `Syndicated copies` and `Classifier confidence` are formatted as plain numbers | Counts showed as dates | Technical |
 
+| 69 | 12 | Digest contents listed | The digest also lists emails waiting under `Monitoring/Review` in the tracker mailbox (count, sender and subject), and a new one makes the digest due | Nobody was told when an email was held back | Decided (Ariel) |
+
 ## I. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.

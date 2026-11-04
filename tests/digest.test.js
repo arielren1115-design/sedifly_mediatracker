@@ -117,3 +117,27 @@ test('with every recipient a placeholder the digest fails loudly and is logged F
   assert.equal(env.mail.length, 0);
   assert.equal(env.sheets.x['Run Log'].rows.at(-1)[12], 'FAILED');
 });
+
+test('emails waiting in Monitoring/Review are listed with sender and subject, and a new one makes the digest due', () => {
+  const none = buildDigest(base);
+  assert.equal(none.stats.hasChanges, false);
+  assert.match(none.body, /Monitoring\/Review label of the tracker mailbox: 0/);
+  const old = buildDigest({ ...base, reviewEmails: { count: 1, items: [{ from: 'Old <old@x.com>', subject: 'Old one', dateMs: NOW - 3 * 86400000 }] } });
+  assert.equal(old.stats.hasChanges, false, 'an email that has been waiting for days does not trigger a digest by itself');
+  assert.match(old.body, /Old <old@x\.com> \| Old one/);
+  const fresh = buildDigest({ ...base, reviewEmails: { count: 12, items: [{ from: 'Stranger <s@x.com>', subject: '', dateMs: NOW - 3600000 }] } });
+  assert.equal(fresh.stats.hasChanges, true);
+  assert.match(fresh.body, /Stranger <s@x\.com> \| \(no subject\)/);
+  assert.match(fresh.body, /and 11 more/);
+  assert.match(fresh.body, /add the address to TEAM_SENDER_ALLOWLIST/);
+});
+
+test('dailyDigest through the bundle includes the Monitoring/Review emails', async () => {
+  const { env, run } = await ready();
+  const raw = { id: 'rv1', internalDate: String(Date.now()), payload: { headers: [{ name: 'From', value: 'Stranger <s@example.org>' }, { name: 'Subject', value: 'Please add this' }] } };
+  env.mailbox.push({ id: 'rv1', labelIds: new Set(['L_Monitoring/Review']), raw });
+  const r = run('dailyDigest()');
+  assert.equal(r.status, 'OK');
+  assert.match(env.mail[0].body, /Monitoring\/Review label of the tracker mailbox: 1/);
+  assert.match(env.mail[0].body, /Stranger <s@example\.org> \| Please add this/);
+});

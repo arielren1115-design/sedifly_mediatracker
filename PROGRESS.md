@@ -418,3 +418,8 @@ Tests: 288 passing.
 - **Bug found and fixed:** the `Syndicated copies` column was formatted as a date, so counts showed as dates (for example 1900-01-03). `setup()` now sets that column to a plain number and `Classifier confidence` to two decimals. Run `setup()` to apply.
 - **Gap found and fixed:** the spec says a row typed by hand gets its Coverage ID on the next run, but nothing did that, so the hand added row had no ID. Every ingest run now gives an ID and the defaults (Detected at, Normalised URL, Found in, Source route Manual, Archive status Pending, Verification Needs verification) to any Coverage row that has a link, title or outlet and no ID. Only blank cells are filled, nothing a person wrote is changed.
 - Tests: 300 passing.
+
+### 2026-11-04 night: live tests and the review email line
+- **M5 approval path passed live (DEV):** a Critical row approved in the Review Queue became COV-000663, one alert email was sent, `Instant alert sent` was stamped, and a rerun sent nothing. Run Log: `runReviewSync` OK, `alert: sent`.
+- **Sender tracking passed live (DEV):** a Sedifly sender and a personal address on `TEAM_SENDER_ALLOWLIST` were both logged with `Submitted by` and moved to `Monitoring/Processed`. An address not on the list moved to `Monitoring/Review` with no row, and the Run Log counted it under To review.
+- **Digest now lists the emails waiting in `Monitoring/Review`** (count, then sender and subject of the newest 10, with what to do), because nothing else tells anyone about them. An email that arrived in the last 24 hours makes the digest due; one that has been waiting for days does not by itself. Tests: 302 passing.

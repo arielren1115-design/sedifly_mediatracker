@@ -16,9 +16,10 @@ const sgt = (t) => `${new Date(t + 8 * 3600 * 1000).toISOString().slice(0, 16).r
  * @param {Object<string, any>[]} a.runLog Run Log rows by header name
  * @param {string|null} a.lastSuccessIso
  * @param {string} a.sheetUrl
+ * @param {{count: number, items: {from: string, subject: string, dateMs: number}[]}} [a.reviewEmails] emails waiting under Monitoring/Review in the tracker mailbox
  * @returns {{subject: string, body: string, stats: object}}
  */
-export function buildDigest({ nowMs, coverage, review, runLog, lastSuccessIso, sheetUrl }) {
+export function buildDigest({ nowMs, coverage, review, runLog, lastSuccessIso, sheetUrl, reviewEmails = { count: 0, items: [] } }) {
   const since = nowMs - DAY_MS;
   const fresh = coverage.filter((r) => ms(r['Detected at']) >= since);
   const byChannel = {};
@@ -34,7 +35,8 @@ export function buildDigest({ nowMs, coverage, review, runLog, lastSuccessIso, s
   const decided = review.filter((r) => ms(r['Synced at']) >= since).length;
   const stats = { newReview, decided, newRows: fresh.length, byChannel, openReview, alerts, skipped: sum('Skipped (no entity)'), failed: status('FAILED'), partial: status('PARTIAL') };
   // Something new or changed: new rows, new review items, alerts, review decisions processed, or a problem run. Waiting items and skipped alert results alone do not count.
-  stats.hasChanges = stats.newRows + newReview + decided + alerts + stats.failed + stats.partial > 0;
+  stats.newReviewEmails = reviewEmails.items.filter((e) => e.dateMs >= since).length;
+  stats.hasChanges = stats.newRows + newReview + decided + alerts + stats.failed + stats.partial + stats.newReviewEmails > 0;
 
   const lines = [`Media coverage digest for the 24 hours to ${sgt(nowMs)}.`, ''];
   lines.push(`New coverage rows: ${fresh.length}`);
@@ -43,12 +45,18 @@ export function buildDigest({ nowMs, coverage, review, runLog, lastSuccessIso, s
   lines.push(
     `Instant alerts sent: ${alerts}`,
     `Review Queue items waiting for a decision: ${openReview}${approvedWaiting ? ` (plus ${approvedWaiting} approved but not yet copied across, check they have Entity, Category and Priority)` : ''}`,
+    `Emails waiting in the Monitoring/Review label of the tracker mailbox: ${reviewEmails.count}`,
     `Archive status Screenshot needed: ${count('Screenshot needed')}`,
     `Archive status Save by hand: ${count('Save by hand')}`,
     `Alert results skipped because no monitored entity matched: ${stats.skipped}`,
     `Failed runs: ${stats.failed}. Partial runs: ${stats.partial}.`,
     `Last successful run: ${lastSuccessIso ? sgt(Date.parse(lastSuccessIso)) : 'never'}`,
   );
+  if (reviewEmails.items.length) {
+    lines.push('', 'Emails in Monitoring/Review, newest first (open the label in Gmail; for a real teammate add the address to TEAM_SENDER_ALLOWLIST, then move the label back to Monitoring/Team Forward):');
+    for (const e of reviewEmails.items) lines.push(`- ${e.from} | ${e.subject || '(no subject)'}`);
+    if (reviewEmails.count > reviewEmails.items.length) lines.push(`...and ${reviewEmails.count - reviewEmails.items.length} more.`);
+  }
   if (fresh.length) {
     const order = (r) => { const i = PRIORITY_ORDER.indexOf(r.Priority); return i < 0 ? PRIORITY_ORDER.length : i; };
     const top = [...fresh].sort((a, b) => order(a) - order(b) || ms(b['Detected at']) - ms(a['Detected at'])).slice(0, LIST_LIMIT);

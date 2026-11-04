@@ -84,3 +84,18 @@ export function markProcessed(id, labelIds, sourceLabel) {
 export function markReview(id, labelIds, sourceLabel) {
   relabel(id, labelIds, sourceLabel, LABEL_REVIEW);
 }
+
+/**
+ * Emails under Monitoring/Review: how many there are, and the sender, subject and time of the newest ones. Headers only, the body is not read.
+ * @returns {{count: number, items: {from: string, subject: string, dateMs: number}[]}}
+ */
+export function listReviewEmails(labelIds, show = 10) {
+  const res = Gmail.Users.Messages.list('me', { labelIds: [labelIds[LABEL_REVIEW]], maxResults: 100 });
+  const ids = (res.messages || []).map((m) => m.id);
+  const items = ids.slice(0, show).map((id) => {
+    const m = Gmail.Users.Messages.get('me', id, { format: 'metadata', metadataHeaders: ['From', 'Subject'] });
+    const h = (name) => ((m.payload && m.payload.headers) || []).find((x) => x.name.toLowerCase() === name.toLowerCase());
+    return { from: h('From') ? h('From').value : '', subject: h('Subject') ? h('Subject').value : '', dateMs: Number(m.internalDate) || 0 };
+  });
+  return { count: ids.length, items };
+}

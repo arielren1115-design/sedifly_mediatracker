@@ -3,6 +3,7 @@ import { assertTabsReady } from '../gas/sheets.js';
 import { appendRunLog, log } from '../gas/runLog.js';
 import { buildDigest } from '../core/digest.js';
 import { PLACEHOLDER } from '../core/properties.js';
+import { labelIdsByName, listReviewEmails } from '../gas/gmail.js';
 
 const rowsOf = (sheet) => {
   if (!sheet || sheet.getLastRow() < 2) return [];
@@ -37,6 +38,7 @@ function send({ force }) {
       runLog: rowsOf(ss.getSheetByName('Run Log')),
       lastSuccessIso: getProp('LAST_SUCCESS_AT'),
       sheetUrl: ss.getUrl(),
+      reviewEmails: listReviewEmails(labelIdsByName()),
     });
     if (!force && !digest.stats.hasChanges) { log('dailyDigest SKIPPED (nothing new or changed in the last 24 hours)'); return { status: 'SKIPPED', reason: 'nothing new' }; }
     const to = digestRecipients();
