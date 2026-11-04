@@ -303,3 +303,17 @@ test('a live item whose link is an old placement merges into that story and is n
   assert.equal(story[cov.rows[0].indexOf('Found in')], 'Old, Tool');
   assert.match(story[cov.rows[0].indexOf('Source route')], /Backfill: Old tracker, Talkwalker/);
 });
+
+test('a Google Alert in the as-it-happens layout becomes a Coverage row with its entity matched, and the email is Processed', async () => {
+  const { env, sb, add } = await ready();
+  await add('ga2', 'google_alert_joash_lee_as_it_happens', ['Monitoring/Automated']);
+  const s = run(sb, 'runIngest()');
+  assert.equal(s.status, 'OK');
+  assert.deepEqual(labelsOf(env, 'ga2'), ['L_Monitoring/Processed']);
+  const cov = env.sheets.x.Coverage;
+  const h = cov.rows[0];
+  assert.equal(cov.rows.length - 1, 1);
+  assert.equal(cov.rows[1][h.indexOf('URL')], 'https://theelitex.com/joash-lee-building-a-more-accessible-future-in-education/');
+  assert.equal(cov.rows[1][h.indexOf('Outlet')], 'EliteX');
+  assert.equal(cov.rows[1][h.indexOf('Source route')], 'Google Alerts');
+});

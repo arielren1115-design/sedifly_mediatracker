@@ -60,3 +60,56 @@ test('the alert name is read from the subject line', () => {
   assert.equal(talkwalkerAlertName('[Talkwalker Alerts] Alert for Sedifly'), 'Sedifly');
   assert.equal(talkwalkerAlertName(''), null);
 });
+
+// ---- the "as-it-happens" layout: no microdata, results found by their google.com/url links ----
+test('Google Alerts as-it-happens layout: the result is found by its link, with outlet and snippet', async () => {
+  const msg = await emlToMessage(`${dir}google_alert_joash_lee_as_it_happens.eml`, 'fx-ga2');
+  assert.deepEqual(parseGoogle(msg), expected('google_alert_joash_lee_as_it_happens'));
+});
+
+test('as-it-happens layout: the share, feedback, unsubscribe and see more links are never results', async () => {
+  const msg = await emlToMessage(`${dir}google_alert_joash_lee_as_it_happens.eml`, 'fx-ga2');
+  const items = parseGoogle(msg);
+  assert.equal(items.length, 1);
+  assert.ok(items.every((i) => !/google\.com/.test(i.url)));
+});
+
+test('as-it-happens layout: several results in one email stay separate and in order, each with its own outlet and snippet', async () => {
+  const msg = await emlToMessage(`${dir}google_alert_joash_lee_as_it_happens.eml`, 'fx-ga2');
+  const html = msg.htmlBody;
+  const start = html.indexOf('<div>  <span style="padding:0px 6px 0px 0px">');
+  const end = html.indexOf('</td> <td style="padding-right:18px">', start);
+  assert.ok(start > 0 && end > start, 'fixture markers found');
+  const block = html.slice(start, end);
+  const second = block.replace(/theelitex\.com/g, 'example.org').replace('<span>EliteX</span> </a>', '<span>Other Outlet</span> </a>').replace(/Founder and CEO/g, 'Speaker');
+  const items = parseGoogle({ ...msg, htmlBody: html.slice(0, end) + second + html.slice(end) });
+  assert.deepEqual(items.map((i) => i.outlet), ['EliteX', 'Other Outlet']);
+  assert.ok(items[1].url.startsWith('https://example.org/'));
+  assert.match(items[1].snippet, /Speaker/);
+  assert.match(items[0].snippet, /Founder and CEO/);
+});
+
+test('as-it-happens layout: a result with no outlet does not borrow the next result outlet', async () => {
+  const msg = await emlToMessage(`${dir}google_alert_joash_lee_as_it_happens.eml`, 'fx-ga2');
+  const html = msg.htmlBody;
+  const start = html.indexOf('<div>  <span style="padding:0px 6px 0px 0px">');
+  const end = html.indexOf('</td> <td style="padding-right:18px">', start);
+  const block = html.slice(start, end);
+  const noOutlet = block.replace(/theelitex\.com/g, 'first.example.org').replace(/<a style="text-decoration:none;color:#737373"> <span>EliteX<\/span> <\/a>/, '');
+  const items = parseGoogle({ ...msg, htmlBody: html.slice(0, start) + noOutlet + block + html.slice(end) });
+  assert.deepEqual(items.map((i) => i.outlet), [null, 'EliteX']);
+});
+
+test('when the HTML cannot be read, the plain text part still yields the results', async () => {
+  const msg = await emlToMessage(`${dir}google_alert_joash_lee_as_it_happens.eml`, 'fx-ga2');
+  const items = parseGoogle({ ...msg, htmlBody: '<p>nothing readable</p>' });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].url, 'https://theelitex.com/joash-lee-building-a-more-accessible-future-in-education/');
+  assert.equal(items[0].outlet, null);
+});
+
+test('Google Alerts digest layout (microdata) is unchanged', async () => {
+  const msg = await emlToMessage(`${dir}google_alert_joash_lee.eml`, 'fx-ga');
+  assert.equal(parseGoogle(msg).length, 1);
+  assert.equal(parseGoogle(msg)[0].outlet, 'Unisba Media');
+});

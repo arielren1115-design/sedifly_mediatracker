@@ -125,6 +125,8 @@ Last updated: 2026-11-02, after the sync with Joash and Ben.
 | 70 | 16 | Backfill step `report` | `backfillReport()` as a hand run function. Recovery rate is counted per Old story, over News, Blog, Listing, Reddit, Hacker News and Forum | Spec step `report` | Technical |
 | 71 | 8.2 | Dedupe against rows already in the Book of Truth | Also against the placements of grouped stories, so a live item with an old placement link merges into its story | Found while building the report | Technical |
 
+| 72 | 7.2 | Google Alerts parser reads one layout | Reads both layouts Google sends (digest with microdata, and as-it-happens), with a plain text fallback | First live alert was held back | Technical |
+
 ## I. Risks to record, no spec change needed
 
 - The `From` header can be spoofed. Check SPF and DMARC results before Marketing relies on the team forward allowlist.
