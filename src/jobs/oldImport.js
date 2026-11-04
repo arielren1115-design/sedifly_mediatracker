@@ -23,8 +23,9 @@ export function importOldDryRun() {
     const startedAt = new Date();
     const ss = SpreadsheetApp.openById(targetSpreadsheetId());
     assertTabsReady(ss);
-    const { tabs, plan, missing, extra } = loadOldPlan();
+    const { tabs, plan, missing, extra, source } = loadOldPlan();
     const { lines, balanced } = buildReport({ tabs, missing, extra, plan });
+    lines.splice(1, 0, ['Source file read', `${source.name} (${source.id})`], ['Report written at', new Date()]);
     // Rows already in Coverage that did not come from the import (for example live items): the import would duplicate their links.
     const live = readIndexRows(ss).filter((r) => r.sheet === 'Coverage');
     const liveNorms = new Set(live.map((r) => r.normalisedUrl).filter(Boolean));

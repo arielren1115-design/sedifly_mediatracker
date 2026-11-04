@@ -3,7 +3,7 @@ import { getProp } from './config.js';
 import { PLACEHOLDER } from '../core/properties.js';
 import { matchTabs, parseTab, planStories, OLD_TABS } from '../core/oldImport.js';
 
-/** @returns {{tabs: object[], plan: object, missing: string[], extra: string[]}} */
+/** @returns {{tabs: object[], plan: object, missing: string[], extra: string[], source: {name: string, id: string}}} */
 export function loadOldPlan() {
   const id = getProp('OLD_TRACKER_FILE_ID');
   if (!id || id.startsWith(PLACEHOLDER)) throw new Error('OLD_TRACKER_FILE_ID is not set. Set it to the Google Sheets copy of the Old tracker.');
@@ -17,7 +17,7 @@ export function loadOldPlan() {
     if (parsed.error) throw new Error(parsed.error);
     return parsed;
   });
-  return { tabs, plan: planStories(tabs.flatMap((t) => t.records)), missing, extra };
+  return { tabs, plan: planStories(tabs.flatMap((t) => t.records)), missing, extra, source: { name: old.getName(), id } };
 }
 
 /** Writes report lines to a report tab (Import Report by default), replacing what was there. */

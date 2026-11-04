@@ -57,6 +57,8 @@ export function makeEnv(props) {
       insertSheet: (n) => (map[n] = fakeSheet(n)),
       getSheets: () => Object.values(map),
       deleteSheet: (sh) => { delete map[sh.name]; },
+      getName: () => `Fake spreadsheet ${id}`,
+      getId: () => id,
       getUrl: () => `https://docs.google.com/spreadsheets/d/${id}/edit`,
       getSpreadsheetTimeZone: () => state.tz[id] || 'America/Los_Angeles',
       setSpreadsheetTimeZone: (tz) => { state.tz[id] = tz; },

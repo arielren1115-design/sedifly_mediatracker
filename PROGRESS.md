@@ -407,3 +407,8 @@ Tests: 288 passing.
 ### 2026-11-04: Ben's third review
 - **The 29 August summit post is its own story.** The `lnkd.in/p/gd9adJA7` link no longer joins or attracts a group (`OWN_STORY_LINKS` in `core/oldImport.js`, with the reason written into that row's Notes). The other summit posts (the full LinkedIn post and the Facebook post) stay grouped without it, so group 62 becomes one story with one placement and the 29 August post is a separate story. Expected totals on the next dry run: 5,891 data rows become 634 stories, 5,218 placements and 39 duplicate links (Social Media: 53 stories, 15 placements). Everything else is unchanged.
 - Tests: 298 passing.
+
+### 2026-11-04 (after the cut-off): final dry run
+- Snapshot: Google Sheets copy of the Old tracker created 4 November 14:09 SGT, ID `1onBA4NPm5PYv_4CXVMk9plqxbb8H5bgD4j_ujsZc-TM` (set as `OLD_TRACKER_FILE_ID`). The final dry run (14:11 SGT) matches the previous one exactly: 5,891 data rows, 634 stories, 5,218 placements, 39 duplicate links, 24 rows kept for review, every tab adds up, Media channel News 562 / Other 1 / Blog 1; per tab row counts are unchanged from the 3 November copy (Media 5,808, Social 70, Listings 19), so nothing was added to the Old tracker in between. Audit: 10 rows, all new.
+- The report now names the source file it read and when the report was written, so an approval always refers to a known file.
+- Before the real import: clear the 11 test rows in Coverage and the 1 in the Review Queue (DEV test data), keep the headers.

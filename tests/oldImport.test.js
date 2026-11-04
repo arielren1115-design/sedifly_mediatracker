@@ -271,6 +271,7 @@ test('dry run writes only the Import Report tab; nothing reaches Coverage; the o
   const rep = env.sheets.x['Import Report'].rows;
   assert.equal(rep[0][0], 'Old tracker import report');
   assert.ok(rep.some((l) => l[0] === 'All tabs' && l[8] === 'yes'));
+  assert.ok(rep.some((l) => l[0] === 'Source file read' && /\(old\)$/.test(l[1])), 'the report names the file it read');
   assert.ok(rep.some((l) => l[0] === 'Coverage rows already in the sheet before this import' && l[1] === 0));
   assert.equal(JSON.stringify(env.sheets.old), before, 'Old tracker not changed');
 });
