@@ -12,6 +12,7 @@ import { simpleView, fullView } from './jobs/view.js';
 import { importOldDryRun, importOld } from './jobs/oldImport.js';
 import { importAuditDryRun, importAudit } from './jobs/auditImport.js';
 import { backfillReport as backfillReportJob } from './jobs/backfillReport.js';
+import { claudeSelfTest } from './jobs/selfTest.js';
 import { guarded } from './jobs/guard.js';
 
 const guardedIngest = guarded('runIngest', runIngest);
@@ -25,6 +26,7 @@ const guardedImport = guarded('importOld', importOld);
 const guardedAuditDry = guarded('importAuditDryRun', importAuditDryRun);
 const guardedAudit = guarded('importAudit', importAudit);
 const guardedBackfillReport = guarded('backfillReport', backfillReportJob);
+const guardedSelfTest = guarded('claudeSelfTest', claudeSelfTest);
 
 export {
   setup, simpleView, fullView, compareBlindRun, mergeBlindRun, callClaude,
@@ -39,4 +41,5 @@ export {
   guardedAuditDry as importAuditDryRun,
   guardedAudit as importAudit,
   guardedBackfillReport as backfillReport,
+  guardedSelfTest as claudeSelfTest,
 };

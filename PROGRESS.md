@@ -434,3 +434,7 @@ Tests: 288 passing.
 - **Fix:** the parser now reads the digest layout as before, and otherwise finds each result by its title link (`google.com/url?...&ct=ga`; the share, feedback, unsubscribe and "see more" links are never results), taking the outlet and snippet that follow it until the next result. If the HTML cannot be read at all, it falls back to the plain text part (title, snippet, link). A result with no outlet does not borrow the next result's outlet.
 - Redacted real email saved as `fixtures/emails/google_alert_joash_lee_as_it_happens.eml` with its expected output. Tests cover one result, several results, no outlet, plain text fallback, the unchanged digest layout and the full run through Gmail and the sheet (313 tests passing).
 - To reprocess an email already held back: in Gmail remove `Monitoring/Review` and add `Monitoring/Automated`.
+
+### 2026-11-05: Anthropic key set in DEV, self test added
+- The key is set in DEV. Nothing new has arrived since, so no live item has been classified yet and the key is untested. Run Log and Coverage show no classification activity.
+- `claudeSelfTest()` (run by hand) sends one made up article through exactly the request the live job uses and reports whether the key, the model name (`CLAUDE_MODEL`) and the answer format work, with a plain hint for each failure (401 key, 404 model, 400 rejected, 402 or 403 credit or access, busy, bad answer). It writes nothing to any sheet and sends no email. Tests: 317 passing.

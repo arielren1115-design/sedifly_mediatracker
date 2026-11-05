@@ -15,3 +15,4 @@ function importOld() { return App.importOld(); } // run by hand after the dry ru
 function importAuditDryRun() { return App.importAuditDryRun(); } // run by hand: writes only the Audit Report tab
 function importAudit() { return App.importAudit(); } // run by hand after the audit dry run is reviewed and IMPORT_CONFIRMED is YES
 function backfillReport() { return App.backfillReport(); } // run by hand: writes the Backfill Report tab
+function claudeSelfTest() { return App.claudeSelfTest(); } // run by hand: checks the Anthropic key and model with one made up article
